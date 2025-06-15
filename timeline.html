@@ -95,6 +95,8 @@
   const entriesEl = document.getElementById('entries');
   const overallTotalEl = document.getElementById('overall-total');
   const overtimeTotalEl = document.getElementById('overtime-total');
+  
+  const allEntries = [];
 
   function createTimeSlots() {
     const slots = [];
@@ -111,8 +113,6 @@
     }
     return slots;
   }
-
-  const allEntries = [];
 
   for (let i = 0; i < entryCount; i++) {
     const wrapper = document.createElement('div');
@@ -155,6 +155,17 @@
     afterLabel.textContent = '後残業: ';
     const overtimeAfter = document.createElement('select');
     overtimeAfter.className = 'overtime-select';
+
+          // === 🧹 クリアボタンの追加 ===
+    const clearBtn = document.createElement('button');
+    clearBtn.textContent = 'クリア';
+    clearBtn.style.marginBottom = '4px';
+    clearBtn.addEventListener('click', () => {
+      slots.forEach(slot => slot.classList.remove('selected'));
+      updateAllTotals();
+
+  });
+  wrapper.appendChild(clearBtn);
 
     for (let j = 0; j <= 12; j++) {
       const min = j * 30;
