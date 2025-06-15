@@ -40,6 +40,12 @@
     .timeline {
       display: inline-flex;
     }
+    .clear-button {
+      margin-left: auto;
+      margin-right: 0;
+      padding: 4px 10px;
+      font-size: 12px;
+    }
     .slot {
       flex: 0 0 auto;
       width: 26px;
@@ -159,13 +165,17 @@
           // === 🧹 クリアボタンの追加 ===
     const clearBtn = document.createElement('button');
     clearBtn.textContent = 'クリア';
-    clearBtn.style.marginBottom = '4px';
+    clearBtn.style.fontSize = '12px';
+    clearBtn.style.padding = '4px 10px';
+    clearBtn.style.flexShrink = '0';
     clearBtn.addEventListener('click', () => {
       slots.forEach(slot => slot.classList.remove('selected'));
+      overtimeBefore.value = 0;
+      overtimeAfter.value = 0;
       updateAllTotals();
 
   });
-  wrapper.appendChild(clearBtn);
+  
 
     for (let j = 0; j <= 12; j++) {
       const min = j * 30;
@@ -203,13 +213,30 @@
     timelineRow.appendChild(beforeWrapper);
     timelineRow.appendChild(timelineWrapper);
     timelineRow.appendChild(afterWrapper);
-
+  
     wrapper.appendChild(timelineRow);
+ 
+    // 出力行とクリアボタンを包む　div を作成
+    const bottomRow = document.createElement('div');
+    bottomRow.style.display = 'flex';
+    bottomRow.style.alignItems = 'center';
+    bottomRow.style.marginTop = '6px';
+    bottomRow.style.width = '100%';
+    bottomRow.style.boxSizing = 'border-box';
 
+    // 洗濯時間を表示
     const output = document.createElement('div');
     output.className = 'output';
     output.textContent = `選択時間: 0 時間`;
-    wrapper.appendChild(output);
+
+    // spacer
+    const spacer = document.createElement('div');
+    spacer.style.flex = '1';
+
+    bottomRow.appendChild(output);
+    bottomRow.appendChild(spacer);
+    bottomRow.appendChild(clearBtn);
+    wrapper.appendChild(bottomRow);
 
     entriesEl.appendChild(wrapper);
 
