@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>日報入力（横並び版）</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+    }
+    .entry {
+      margin-bottom: 20px;
+    }
+    .entry-fields {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 4px;
+      align-items: center;
+    }
+    input[type="text"], select {
+      padding: 4px;
+      font-size: 13px;
+    }
+    input.title { width: 200px; }
+    input.task { width: 400px; }
+    input.partner { width: 200px; }
+
+    .timeline-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 6px 0;
+    }
+    .timeline-wrapper {
+      overflow-x: auto;
+      white-space: nowrap;
+      border: 1px solid #ccc;
+    }
+    .timeline {
+      display: inline-flex;
+    }
+    .slot {
+      flex: 0 0 auto;
+      width: 26px;
+      padding: 4px 2px;
+      text-align: left;
+      font-size: 9px;
+      border-right: 1px solid #eee;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      user-select: none;
+      padding-left: 2px;
+    }
+    .slot.selected {
+      background-color: #90ee90;
+    }
+    .slot.disabled {
+      background-color: #f0f0f0;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    .slot.bold-left {
+      border-left: 2px solid #555;
+    }
+    .output {
+      margin-top: 5px;
+      font-size: 12px;
+    }
+    .total-time {
+      font-weight: bold;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    .overtime-select {
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+<h2>📝 日報入力（横並び版）</h2>
+
+<div id="entries"></div>
+
+<div class="total-time">総合計時間: <span id="overall-total">0</span> 時間</div>
+<div class="total-time">残業時間合計: <span id="overtime-total">0</span> 分</div>
+
+<script>
+  const startHour = 8;
+  const endHour = 18;
+  const interval = 30;
+  const entryCount = 7;
+
+  const entriesEl = document.getElementById('entries');
+  const overallTotalEl = document.getElementById('overall-total');
+  const overtimeTotalEl = document.getElementById('overtime-total');
+
+  function createTimeSlots() {
+    const slots = [];
+    for (let h = startHour; h < endHour; h++) {
+      for (let m of [0, 30]) {
+        const time = `${h}:${m.toString().padStart(2, '0')}`;
+        const label = m === 0 ? `${h}` : ``;
+
+        const isDisabled = (h === 8 && m === 0) || (h === 12 && m <= 30) || (h === 17 && m == 30);
+        const isBoldLeft = (h === 8 && m === 30) || (h === 17 && m === 30);
+
+        slots.push({ time, label, disabled: isDisabled, boldLeft: isBoldLeft });
+      }
+    }
+    return slots;
+  }
+
+  const allEntries = [];
+
+  for (let i = 0; i < entryCount; i++) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'entry';
+
+    const fieldRow = document.createElement('div');
+    fieldRow.className = 'entry-fields';
+
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.placeholder = `件名 ${i + 1}`;
+    titleInput.className = 'title';
+
+    const taskInput = document.createElement('input');
+    taskInput.type = 'text';
+    taskInput.placeholder = `作業内容`;
+    taskInput.className = 'task';
+
+    const partnerInput = document.createElement('input');
+    partnerInput.type = 'text';
+    partnerInput.placeholder = `同行者`;
+    partnerInput.className = 'partner';
+
+    fieldRow.appendChild(titleInput);
+    fieldRow.appendChild(taskInput);
+    fieldRow.appendChild(partnerInput);
+    wrapper.appendChild(fieldRow);
+
+    const timelineRow = document.createElement('div');
+    timelineRow.className = 'timeline-row';
+
+    const beforeWrapper = document.createElement('div');
+    const beforeLabel = document.createElement('span');
+    beforeLabel.textContent = '前残業: ';
+    const overtimeBefore = document.createElement('select');
+    overtimeBefore.className = 'overtime-select';
+
+    const afterWrapper = document.createElement('div');
+    const afterLabel = document.createElement('span');
+    afterLabel.textContent = '後残業: ';
+    const overtimeAfter = document.createElement('select');
+    overtimeAfter.className = 'overtime-select';
+
+    for (let j = 0; j <= 12; j++) {
+      const min = j * 30;
+      const opt = document.createElement('option');
+      opt.value = min;
+      opt.textContent = min === 0 ? '0時間' : `${min / 60}時間`;
+      overtimeBefore.appendChild(opt.cloneNode(true));
+      overtimeAfter.appendChild(opt);
+    }
+
+    beforeWrapper.appendChild(beforeLabel);
+    beforeWrapper.appendChild(overtimeBefore);
+    afterWrapper.appendChild(afterLabel);
+    afterWrapper.appendChild(overtimeAfter);
+
+    const timelineWrapper = document.createElement('div');
+    timelineWrapper.className = 'timeline-wrapper';
+
+    const timeline = document.createElement('div');
+    timeline.className = 'timeline';
+
+    const slots = createTimeSlots().map(({ time, label, disabled, boldLeft }) => {
+      const el = document.createElement('div');
+      el.className = 'slot';
+      if (disabled) el.classList.add('disabled');
+      if (boldLeft) el.classList.add('bold-left');
+      el.dataset.time = time;
+      el.textContent = label;
+      timeline.appendChild(el);
+      return el;
+    });
+
+    timelineWrapper.appendChild(timeline);
+
+    timelineRow.appendChild(beforeWrapper);
+    timelineRow.appendChild(timelineWrapper);
+    timelineRow.appendChild(afterWrapper);
+
+    wrapper.appendChild(timelineRow);
+
+    const output = document.createElement('div');
+    output.className = 'output';
+    output.textContent = `選択時間: 0 時間`;
+    wrapper.appendChild(output);
+
+    entriesEl.appendChild(wrapper);
+
+    allEntries.push({ slots, output, overtimeBefore, overtimeAfter });
+  }
+
+  function updateAllTotals() {
+    let totalMinutes = 0;
+    let totalOvertime = 0;
+
+    allEntries.forEach(entry => {
+      const selected = entry.slots.filter(s => s.classList.contains('selected'));
+      const minutes = selected.length * 30;
+
+      const overtimeBefore = parseInt(entry.overtimeBefore.value, 10);
+      const overtimeAfter = parseInt(entry.overtimeAfter.value, 10);
+      const overtime = overtimeBefore + overtimeAfter;
+
+      totalMinutes += minutes + overtime;
+      totalOvertime += overtime;
+
+      entry.output.textContent = `選択時間: ${(minutes + overtime) / 60} 時間（残業: ${(overtime / 60).toFixed(1)} 時間)`;
+    });
+
+    overallTotalEl.textContent = (totalMinutes / 60).toFixed(1);
+    overtimeTotalEl.textContent = totalOvertime;
+  }
+
+  allEntries.forEach(entry => {
+    let isDragging = false;
+
+    entry.slots.forEach(slot => {
+      function toggleSlot(target) {
+        if (target.classList.contains('disabled')) return;
+        target.classList.toggle('selected');
+        updateAllTotals();
+      }
+
+      function selectSlot(target) {
+        if (target.classList.contains('disabled') || target.classList.contains('selected')) return;
+        target.classList.add('selected');
+        updateAllTotals();
+      }
+
+      slot.addEventListener('mousedown', () => {
+        isDragging = true;
+        toggleSlot(slot);
+      });
+
+      slot.addEventListener('mousemove', (e) => {
+        if (isDragging && e.buttons) {
+          selectSlot(slot);
+        }
+      });
+
+      slot.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        isDragging = true;
+        toggleSlot(slot);
+      }, { passive: false });
+
+      slot.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (target && target.classList.contains('slot')) {
+          selectSlot(target);
+        }
+      }, { passive: false });
+
+      document.addEventListener('mouseup', () => isDragging = false);
+      document.addEventListener('touchend', () => isDragging = false);
+    });
+
+    entry.overtimeBefore.addEventListener('change', updateAllTotals);
+    entry.overtimeAfter.addEventListener('change', updateAllTotals);
+  });
+</script>
+
+</body>
+</html>
+
