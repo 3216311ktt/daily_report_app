@@ -92,6 +92,8 @@
 <div class="total-time">総合計時間: <span id="overall-total">0</span> 時間</div>
 <div class="total-time">残業時間合計: <span id="overtime-total">0</span> 分</div>
 
+<button onclick="submitReports()">送信</button>
+
 <script>
   const startHour = 8;
   const endHour = 18;
@@ -221,10 +223,10 @@
     bottomRow.style.display = 'flex';
     bottomRow.style.alignItems = 'center';
     bottomRow.style.marginTop = '6px';
-    bottomRow.style.width = '100%';
+    bottomRow.style.width = '760px';
     bottomRow.style.boxSizing = 'border-box';
 
-    // 洗濯時間を表示
+    // 選択時間を表示
     const output = document.createElement('div');
     output.className = 'output';
     output.textContent = `選択時間: 0 時間`;
@@ -314,6 +316,40 @@
     entry.overtimeBefore.addEventListener('change', updateAllTotals);
     entry.overtimeAfter.addEventListener('change', updateAllTotals);
   });
+
+  function submitReports() {
+    const name = prompt("名前を入力してください");
+    if (!name) return;
+
+    const reports = allEntries.map(entry => {
+      const workMinutes = entry.slots.filter(s => s.classList.contains('selected')).length * 30;
+      const overtimeBefore = parseInt(entry.overtimeBefore.value, 10);
+      const overtimeAfter = parseInt(entry.overtimeAfter.value, 10);
+      const total = workMinutes + overtimeBefore + overtimeAfter;
+
+      const fieldRow = entry.slots[0].closest('.entry').querySelector('.entry-fields');
+      const inputs = fieldRow.querySelectorAll('input');
+
+      return {
+        title: inputs[0].value,
+        task: inputs[1].value,
+        partner: inputs[2].value,
+        work_minutes: workMinutes,
+        overtime_before: overtimeBefore,
+        overtime_after: overtimeAfter,
+        total_minutes: total
+      };
+    });
+
+    fetch('/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, reports })
+    }).then(res => res.json()).then(data => {
+      if (data.status === 'success') alert('保存しました！');
+      else alert('保存に失敗しました');
+    });
+  }
 </script>
 
 </body>

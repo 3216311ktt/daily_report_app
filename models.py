@@ -1,0 +1,17 @@
+from flask_sqlalchemy import SQLAlchemy
+
+db = SQLAlchemy()
+
+class DailyReport(db.Model):
+    __tablename__ = 'daily_reports'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100),nullable=False)
+    title = db.Column(db.String(200))
+    task = db.Column(db.String(500))
+    partner = db.Column(db.String(200))
+    work_minutes = db.Column(db.Integer)       # 選択時間（分）
+    overtime_before = db.Column(db.Integer)    # 前残業（分）
+    overtime_after = db.Column(db.Integer)     # 後残業（分）
+    total_minutes = db.Column(db.Integer)      # 合計時間（分）
+    date = db.Column(db.String(10))            # 日付（例: "2025-06-16"）
