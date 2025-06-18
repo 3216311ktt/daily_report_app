@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>日報入力（横並び版）</title>
+  <title>日報入力</title>
   <style>
     body {
       font-family: sans-serif;
@@ -81,30 +81,50 @@
     .overtime-select {
       font-size: 13px;
     }
+    .submit {
+      background-color: rgb(146, 191, 146);
+      height: 40px;
+      width: 300px;
+      font-size: large;
+      margin-left: 300px;
+    }
   </style>
 </head>
 <body>
 
-<h2>📝 日報入力（横並び版）</h2>
-
+<h2>📝 日報入力</h2>
+<tr>
+  <label for="dateInput"> 日付を選択</label>
+  <input type="date" id="dateInput" name="date">
+  <label for="entryCountSelector">件名数</label>
+  <select id="entryCountSelector">
+    <option value="1" selected>1　件</option>
+    <option value="2">2　件</option>
+    <option value="3">3　件</option>
+    <option value="4">4　件</option>
+    <option value="5">5　件</option>
+  </select>
+</tr>
+<br>
+<br>
 <div id="entries"></div>
 
 <div class="total-time">総合計時間: <span id="overall-total">0</span> 時間</div>
 <div class="total-time">残業時間合計: <span id="overtime-total">0</span> 分</div>
 
-<button onclick="submitReports()">送信</button>
+<button onclick="submitReports()" class="submit">送信</button>
 
 <script>
   const startHour = 8;
   const endHour = 18;
   const interval = 30;
-  const entryCount = 7;
 
   const entriesEl = document.getElementById('entries');
   const overallTotalEl = document.getElementById('overall-total');
   const overtimeTotalEl = document.getElementById('overtime-total');
+  const entryCountSelector = document.getElementById('entryCountSelector');
   
-  const allEntries = [];
+  let allEntries = [];
 
   function createTimeSlots() {
     const slots = [];
@@ -121,6 +141,10 @@
     }
     return slots;
   }
+
+  function createEntries(entryCount) {
+    entriesEl.innerHTML = '';
+    allEntries = []
 
   for (let i = 0; i < entryCount; i++) {
     const wrapper = document.createElement('div');
@@ -245,6 +269,62 @@
     allEntries.push({ slots, output, overtimeBefore, overtimeAfter });
   }
 
+  setupSlotEventHandlers();
+  updateAllTotals();
+}
+
+  function setupSlotEventHandlers() {
+    allEntries.forEach(entry => {
+      let isDragging = false;
+
+      entry.slots.forEach(slot => {
+        function toggleSlot(target) {
+          if (target.classList.contains('disabled')) return;
+          target.classList.toggle('selected');
+          updateAllTotals();
+        }
+
+        function selectSlot(target) {
+          if (target.classList.contains('disabled') || target.classList.contains('selected')) return;
+          target.classList.add('selected');
+          updateAllTotals();
+        }
+
+        slot.addEventListener('mousedown', () => {
+          isDragging = true;
+          toggleSlot(slot);
+        });
+
+        slot.addEventListener('mousemove', (e) => {
+          if (isDragging && e.buttons) {
+            selectSlot(slot);
+          }
+        });
+
+        slot.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          isDragging = true;
+          toggleSlot(slot);
+        }, { passive: false });
+
+        slot.addEventListener('touchmove', (e) => {
+          e.preventDefault();
+          const touch = e.touches[0];
+          const target = document.elementFromPoint(touch.clientX, touch.clientY);
+          if (target && target.classList.contains('slot')) {
+            selectSlot(target);
+          }
+        }, { passive: false });
+
+        document.addEventListener('mouseup', () => isDragging = false);
+        document.addEventListener('touchend', () => isDragging = false);
+      });
+
+      entry.overtimeBefore.addEventListener('change', updateAllTotals);
+      entry.overtimeAfter.addEventListener('change', updateAllTotals);
+    });
+  }
+
   function updateAllTotals() {
     let totalMinutes = 0;
     let totalOvertime = 0;
@@ -350,6 +430,24 @@
       else alert('保存に失敗しました');
     });
   }
+
+  //今日の日付を取得
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() +1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  const todayStr = `${yyyy}-${mm}-${dd}`;
+
+  document.getElementById('dateInput').value = todayStr;
+
+  // エントリーを初期表示
+  createEntries(parseInt(entryCountSelector.value, 10));
+
+  // セレクト変更時に再生成
+  entryCountSelector.addEventListener('change', () => {
+    const count = parseInt(entryCountSelector.value, 10);
+    createEntries(count);
+  });
 </script>
 
 </body>
