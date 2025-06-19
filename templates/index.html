@@ -5,6 +5,8 @@
   <title>日報入力</title>
   <style>
     body {
+      max-width: 950px;
+      margin: 0 auto;
       font-family: sans-serif;
       padding: 20px;
     }
@@ -36,6 +38,7 @@
       overflow-x: auto;
       white-space: nowrap;
       border: 1px solid #ccc;
+      padding: 0.8px;
     }
     .timeline {
       display: inline-flex;
@@ -342,7 +345,7 @@
 
       entry.output.textContent = `選択時間: ${(minutes + overtime) / 60} 時間（残業: ${(overtime / 60).toFixed(1)} 時間)`;
     });
-
+  
     overallTotalEl.textContent = (totalMinutes / 60).toFixed(1);
     overtimeTotalEl.textContent = totalOvertime;
   }
@@ -445,11 +448,29 @@
 
   // セレクト変更時に再生成
   entryCountSelector.addEventListener('change', () => {
+    const oldInputs = [];
+
+    // すでに入力された内容を保存
+    document.querySelectorAll('.entry').forEach(entry => {
+      const title = entry.querySelector('.title')?.value || '';
+      const task = entry.querySelector('.task')?.value || '';
+      const partner = entry.querySelector('.partner')?.value || '';
+      oldInputs.push({ title, task, partner });
+    });
+
     const count = parseInt(entryCountSelector.value, 10);
     createEntries(count);
+
+    // 再生成後に保存したデータを復元
+    document.querySelectorAll('.entry').forEach((entry, i) => {
+      if (i < oldInputs.length) {
+        entry.querySelector('.title').value = oldInputs[i].title;
+        entry.querySelector('.task').value = oldInputs[i].task;
+        entry.querySelector('.partner').value = oldInputs[i].partner;
+      }
+    });
   });
 </script>
 
 </body>
 </html>
-
