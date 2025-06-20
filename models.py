@@ -10,6 +10,10 @@ class DailyReport(db.Model):
     title = db.Column(db.String(200))
     task = db.Column(db.String(500))
     partner = db.Column(db.String(200))
+    start_hour = db.Column(db.Integer)
+    start_minute = db.Column(db.Integer)
+    end_hour = db.Column(db.Integer)
+    end_minute = db.Column(db.Integer)
     work_minutes = db.Column(db.Integer)       # 選択時間（分）
     overtime_before = db.Column(db.Integer)    # 前残業（分）
     overtime_after = db.Column(db.Integer)     # 後残業（分）

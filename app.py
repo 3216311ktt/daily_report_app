@@ -34,6 +34,10 @@ def submit():
             title=entry.get('title'),
             task= entry.get('task'),
             partner=entry.get('partner'),
+            start_hour=entry.get('start_hour'),
+            start_minute=entry.get('start_minute'),
+            end_hour=entry.get('end_hour'),
+            end_minute=entry.get('end_minute'),
             work_minutes=entry.get('work_minutes'),
             overtime_before=entry.get('overtime_before'),
             overtime_after=entry.get('overtime_after'),
@@ -98,6 +102,13 @@ def report_chart():
     for r in reports:
         key = (r.date, r.name)
         grouped[key].append(r)
+
+    for key, items in grouped.items():
+        for r in items:
+            if r.start_hour is None:
+                r.start_hour = 0
+            if r.start_minute is None:
+                r.start_minute = 0
 
     return render_template('report_chart.html', grouped=grouped)
 

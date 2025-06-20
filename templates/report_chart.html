@@ -15,7 +15,7 @@
             border-radius: 8px;
             margin: 20px auto;
             padding: 10px 20px;
-            max-width: 800px;
+            max-width: 1000px;
             box-shadow: 2px 2px 8px #ccc;
         }
 
@@ -30,6 +30,7 @@
             font-size: 12px;
             margin-bottom: 8px;
             padding: 0 5px;
+            white-space: nowrap;
         }
 
         .timeline-container {
@@ -71,9 +72,11 @@
 
     <h2>📊 作業タイムライン</h2>
 
-    {% set day_start = 8 * 60 %}
-    {% set day_end = 18 * 60 %}
-    {% set total_minutes = day_end - day_start %}
+    {% set day_start = 8 * 60 + 30 %}
+    {% set day_end = 17 * 60 + 30 %}
+    {% set break_start = 12 * 60 %}
+    {% set break_end = 13 * 60 %}
+    {% set total_minutes = (day_end - day_start) - (break_end - break_start) %}
 
     {% for (date, name), entries in grouped.items() %}
         <div class="card">
@@ -81,34 +84,51 @@
 
             <!-- 時間ラベル -->
             <div class="timeline-labels">
-                {% for h in range(8, 19) %}
-                    <div>{{ h }}:00</div>
-                {% endfor %}
+                <div>8:30</div>
+                <div>9:00</div>
+                <div>10:00</div>
+                <div>11:00</div>
+                <div>12:00</div>  <!-- 視覚上残しておく -->
+                <div>13:00</div>
+                <div>14:00</div>
+                <div>15:00</div>
+                <div>16:00</div>
+                <div>17:00</div>
+                <div>17:30</div>
             </div>
 
+            <!-- タスクバー -->
             <div class="timeline-container">
-                {% set current_start = day_start %}
-                {% for r in entries %}
-                    {% set duration = r.total_minutes %}
-                    {% set offset = ((current_start - day_start) / total_minutes * 100) %}
-                    {% set width = (duration / total_minutes * 100) %}
-                    {% set start_hour = current_start // 60 %}
-                    {% set start_min = current_start % 60 %}
-                    {% set end_minute = current_start + duration %}
-                    {% set end_hour = end_minute // 60 %}
-                    {% set end_min = end_minute % 60 %}
+                <div class="task-row">
+                    {% for r in entries %}
+                        {% set start = r.start_hour * 60 + r.start_minute %}
+                        {% set end = r.end_hour * 60 + r.end_minute %}
+                        {% set duration = end - start %}
 
-                    <div class="task-row">
-                        <div class="task-bar" style="left:{{ offset | round(2) }}%; width:{{ width | round(2) }}%;">
-                            {{ r.title }}
-                        </div>
-                        <div class="task-time">
-                            {{ '%02d:%02d' % (start_hour, start_min) }}〜{{ '%02d:%02d' % (end_hour, end_min) }}
-                        </div>
-                    </div>
+                        {# 昼休みを除いたオフセットと長さを計算 #}
+                        {% set adj_start = start if start < break_start else start - 60 %}
+                        {% set offset = ((adj_start - day_start) / total_minutes * 100) %}
 
-                    {% set current_start = current_start + duration %}
-                {% endfor %}
+                        {% set adj_duration = duration %}
+                        {% if start < break_start and end > break_end %}
+                            {% set adj_duration = duration - 60 %}
+                        {% elif start < break_start and end > break_start %}
+                            {% set adj_duration = break_start - start %}
+                        {% elif start < break_end and end > break_end %}
+                            {% set adj_duration = end - break_end %}
+                        {% elif start >= break_start and end <= break_end %}
+                            {% set adj_duration = 0 %}
+                        {% endif %}
+
+                        {% set width = (adj_duration / total_minutes * 100) %}
+
+                        {% if adj_duration > 0 %}
+                            <div class="task-bar" style="left:{{ offset | round(2) }}%; width:{{ width | round(2) }}%;">
+                                {{ r.title }}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
             </div>
         </div>
     {% endfor %}
