@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日報一覧</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 14px;
+            table-layout: fixed;
+        }
+        th,td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: center;
+        }
+        thead th {
+            position: sticky;
+            top: 0;
+            background-color: #f8f8f8;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+    <h2>📋 日報一覧</h2>
+    <form method="get" style="margin-bottom: 20px;">
+        名前: <input type="text" name="name" value="{{ request.args.get('name', '') }}">
+        日付: <input type="date" name="date" value="{{ request.args.get('date', '') }}">
+        <button type="submit">検索</button>
+        <a href="{{ url_for('view_reports') }}"><button type="button">全て</button></a>
+    </form>
+    <table>
+        <thead>
+            <tr>
+                <th>日付</th>
+                <th>名前</th>
+                <th>件名</th>
+                <th>作業内容</th>
+                <th>同行者</th>
+                <th>前残業</th>
+                <th>通常</th>
+                <th>後残業</th>
+                <th>合計</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in reports %}
+            <tr>
+                <td>{{ r.date }}</td>
+                <td>{{ r.name }}</td>
+                <td>{{ r.title }}</td>
+                <td>{{ r.task }}</td>
+                <td>{{ r.partner }}</td>
+                <td>{{ r.overtime_before / 60 | round(2) }}時間</td>
+                <td>{{ r.work_minutes / 60 | round(2) }}時間</td>
+                <td>{{ r.overtime_after / 60 | round(2) }}時間</td>
+                <td>{{ r.total_minutes / 60 | round(2) }}時間</td>
+                <td>
+                    <a href="{{ url_for('edit_report', id=r.id) }}">編集</a>
+                    <a href="{{ url_for('delete_report', id=r.id) }}" onclick="return confirm('削除してもよろしいですか？')">削除</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

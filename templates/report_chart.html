@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>作業タイムライン</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+        }
+
+        .card {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            margin: 20px auto;
+            padding: 10px 20px;
+            max-width: 800px;
+            box-shadow: 2px 2px 8px #ccc;
+        }
+
+        .card h3 {
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .timeline-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-bottom: 8px;
+            padding: 0 5px;
+        }
+
+        .timeline-container {
+            position: relative;
+            height: auto;
+            background: #eee;
+            border: 1px solid #ccc;
+            padding: 10px 0;
+            overflow-x: auto;
+        }
+
+        .task-row {
+            position: relative;
+            height: 30px;
+            margin: 6px 0;
+        }
+
+        .task-bar {
+            position: absolute;
+            height: 100%;
+            background: #4caf50;
+            color: white;
+            font-size: 12px;
+            line-height: 30px;
+            padding-left: 5px;
+            border-radius: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .task-time {
+            font-size: 11px;
+            color: #333;
+            margin-top: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>📊 作業タイムライン</h2>
+
+    {% set day_start = 8 * 60 %}
+    {% set day_end = 18 * 60 %}
+    {% set total_minutes = day_end - day_start %}
+
+    {% for (date, name), entries in grouped.items() %}
+        <div class="card">
+            <h3>{{ date }} - {{ name }} さん</h3>
+
+            <!-- 時間ラベル -->
+            <div class="timeline-labels">
+                {% for h in range(8, 19) %}
+                    <div>{{ h }}:00</div>
+                {% endfor %}
+            </div>
+
+            <div class="timeline-container">
+                {% set current_start = day_start %}
+                {% for r in entries %}
+                    {% set duration = r.total_minutes %}
+                    {% set offset = ((current_start - day_start) / total_minutes * 100) %}
+                    {% set width = (duration / total_minutes * 100) %}
+                    {% set start_hour = current_start // 60 %}
+                    {% set start_min = current_start % 60 %}
+                    {% set end_minute = current_start + duration %}
+                    {% set end_hour = end_minute // 60 %}
+                    {% set end_min = end_minute % 60 %}
+
+                    <div class="task-row">
+                        <div class="task-bar" style="left:{{ offset | round(2) }}%; width:{{ width | round(2) }}%;">
+                            {{ r.title }}
+                        </div>
+                        <div class="task-time">
+                            {{ '%02d:%02d' % (start_hour, start_min) }}〜{{ '%02d:%02d' % (end_hour, end_min) }}
+                        </div>
+                    </div>
+
+                    {% set current_start = current_start + duration %}
+                {% endfor %}
+            </div>
+        </div>
+    {% endfor %}
+</body>
+</html>

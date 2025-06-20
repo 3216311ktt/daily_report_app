@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" name="viewport">
   <title>日報入力</title>
   <style>
     body {
@@ -85,11 +85,13 @@
       font-size: 13px;
     }
     .submit {
+      display: block;
+      margin: 20px auto;
       background-color: rgb(146, 191, 146);
       height: 40px;
-      width: 300px;
+      max-width: 300px;
       font-size: large;
-      margin-left: 300px;
+      width: 100%;
     }
   </style>
 </head>
@@ -113,7 +115,7 @@
 <div id="entries"></div>
 
 <div class="total-time">総合計時間: <span id="overall-total">0</span> 時間</div>
-<div class="total-time">残業時間合計: <span id="overtime-total">0</span> 分</div>
+<div class="total-time">残業時間合計: <span id="overtime-total">0</span> 時間</div>
 
 <button onclick="submitReports()" class="submit">送信</button>
 
@@ -193,14 +195,19 @@
 
           // === 🧹 クリアボタンの追加 ===
     const clearBtn = document.createElement('button');
+    clearBtn.className = 'clear-button';
     clearBtn.textContent = 'クリア';
     clearBtn.style.fontSize = '12px';
     clearBtn.style.padding = '4px 10px';
     clearBtn.style.flexShrink = '0';
+
     clearBtn.addEventListener('click', () => {
-      slots.forEach(slot => slot.classList.remove('selected'));
-      overtimeBefore.value = 0;
-      overtimeAfter.value = 0;
+      // クリアボタンの親の特定
+      const entryEl = clearBtn.closest('.entry');
+
+      // スロット選択解除
+      entryEl.querySelectorAll('.slot.selected').forEach(s => s.classList.remove('selected'));
+
       updateAllTotals();
 
   });
@@ -347,7 +354,7 @@
     });
   
     overallTotalEl.textContent = (totalMinutes / 60).toFixed(1);
-    overtimeTotalEl.textContent = totalOvertime;
+    overtimeTotalEl.textContent = (totalOvertime / 60).toFixed(1);
   }
 
   allEntries.forEach(entry => {
