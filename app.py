@@ -1,7 +1,7 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for
 from models import db, DailyReport
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 from operator import attrgetter
 
@@ -28,7 +28,11 @@ def submit():
     name = request.json.get('name', '未入力')
     date = datetime.now().strftime('%Y-%m-%d')
 
+    print('POSTされたデータ:', reports)
+    print('名前:', name, '日付:', date)
+
     for entry in reports:
+        print('レポート1件:', entry)
         report = DailyReport(
             name=name,
             title=entry.get('title'),
@@ -96,25 +100,105 @@ def delete_report(id):
 # 一人１日をカード表示
 @app.route('/chart')
 def report_chart():
-    reports = DailyReport.query.order_by(DailyReport.date, DailyReport.name, DailyReport.id).all()
+    date = request.args.get('date') or datetime.now().strftime('%Y-%m-%d')
 
+    reports = DailyReport.query.filter_by(date=date).order_by(DailyReport.name, DailyReport.id).all()
+
+    # データ整形（1人1日単位でまとめる）
     grouped = defaultdict(list)
     for r in reports:
-        key = (r.date, r.name)
-        grouped[key].append(r)
+        grouped[r.date, r.name].append(r)
 
-    for key, items in grouped.items():
-        for r in items:
-            if r.start_hour is None:
-                r.start_hour = 0
-            if r.start_minute is None:
-                r.start_minute = 0
+    result = []
+    for name, items in grouped.items():
+        entry_list = []
+        current = datetime.strptime("08:30", "%H:%M")
+
+        for item in items:
+            work_start = current
+            work_end = work_start + timedelta(minutes=item.work_minutes)
+
+            # 昼休憩(12:00~13:00)をスッキプ
+            if work_start < datetime.strptime("12:00", "%H:%M") < work_end:
+                work_end += timedelta(hours=1)
+
+            # 前残業
+            before = None
+            if item.overtime_before:
+                before = {
+                    'start': (work_start - timedelta(minutes=item.overtime_before)).strftime('%H:%M'),
+                    'end': work_start.strftime('%H:%M'),
+                    'color': '#f88'
+                }
+
+            # 通常作業
+            main = {
+                'start': work_start.strftime('%H:%M'),
+                'end': work_end.strftime('%H:%M'),
+                'title': item.title,
+                'color': '#9f9'
+            }
+
+            # 後残業
+            after = None
+            if item.overtime_after:
+                after_start = work_end
+                after_end = after_start + timedelta(minutes=item.overtime_after)
+                after = {
+                    'start': after_start.strftime('%H:%M'),
+                    'end': after_end.strftime('%H:%M'),
+                    'color': '#f88'
+                }
+
+            entry_list.append({
+                'before': before,
+                'main': main,
+                'after': after
+            })
+
+            current = work_end
+            if item.overtime_after:
+                current += timedelta(minutes=item.overtime_after)
+
+        result.append({
+            'name': name,
+            'date': date,
+            'entries': entry_list
+        })
 
     return render_template('report_chart.html', grouped=grouped)
+
+def time_to_percent(t):
+    t = datetime.strptime(t, "%H:%M")
+    minutes = t.hour * 60 + t.minute
+
+    # 作業時間枠　8:30(510)~17:30(1050) - 昼休憩(12:00~13:00, 60分除外)
+    if minutes >= 780: # 13:00以降
+        minutes -= 60
+    percent = (minutes - 510) / 480 * 100
+    return max(0, min(percent, 100))
+
+def time_range_percent(start, end):
+    s = datetime.strptime(start, "%H:%M")
+    e = datetime.strptime(end, "%H:%M")
+    s_min = s.hour * 60 + s.minute
+    e_min = e.hour * 60 + e.minute
+
+    # 昼休憩またぐ場合は60分除外
+    overlap_start = max(s_min, 720)
+    overlap_end = min(e_min, 780)
+    lunch_overlap = max(0, overlap_end - overlap_start)
+
+    duration = e_min - s_min - lunch_overlap
+    return duration / 480 * 100
+
+app.jinja_env.globals.update(time_to_percent=time_to_percent)
+app.jinja_env.globals.update(time_range_percent=time_range_percent)
+
 
 
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(host='0.0.0.0', port=5000, debug=True)
-
+    

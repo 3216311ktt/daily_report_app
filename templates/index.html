@@ -408,18 +408,34 @@
   });
 
   function submitReports() {
+    console.log("submitReports() 発動");
     const name = prompt("名前を入力してください");
     if (!name) return;
 
     const reports = allEntries.map(entry => {
-      const workMinutes = entry.slots.filter(s => s.classList.contains('selected')).length * 30;
+      const selectedSlots = entry.slots.filter(s => s.classList.contains('selected'));
+      const workMinutes = selectedSlots.length * 30;
       const overtimeBefore = parseInt(entry.overtimeBefore.value, 10);
       const overtimeAfter = parseInt(entry.overtimeAfter.value, 10);
       const total = workMinutes + overtimeBefore + overtimeAfter;
 
+        // start / end の時間をここで取得
+      let start_time = null;
+      let end_time = null;
+
+      if (selectedSlots.length > 0) {
+        start_time = selectedSlots[0].dataset.time;
+        end_time = selectedSlots[selectedSlots.length - 1].dataset.time;
+      }
+
+      let [start_hour, start_minute] = start_time ? start_time.split(':').map(Number) : [null, null];
+      let [end_hour, end_minute] = end_time ? end_time.split(':').map(Number) : [null, null];
+
+      // 入力項目の取得
       const fieldRow = entry.slots[0].closest('.entry').querySelector('.entry-fields');
       const inputs = fieldRow.querySelectorAll('input');
 
+      // 送信データに含める
       return {
         title: inputs[0].value,
         task: inputs[1].value,
@@ -427,10 +443,15 @@
         work_minutes: workMinutes,
         overtime_before: overtimeBefore,
         overtime_after: overtimeAfter,
-        total_minutes: total
+        total_minutes: total,
+        start_hour,
+        start_minute,
+        end_hour,
+        end_minute
       };
     });
 
+    // POST送信
     fetch('/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -440,6 +461,7 @@
       else alert('保存に失敗しました');
     });
   }
+
 
   //今日の日付を取得
   const today = new Date();

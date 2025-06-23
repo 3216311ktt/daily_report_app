@@ -1,136 +1,101 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>作業タイムライン</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            padding: 20px;
-        }
-
-        .card {
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            margin: 20px auto;
-            padding: 10px 20px;
-            max-width: 1000px;
-            box-shadow: 2px 2px 8px #ccc;
-        }
-
-        .card h3 {
-            margin-bottom: 10px;
-            font-size: 18px;
-        }
-
-        .timeline-labels {
-            display: flex;
-            justify-content: space-between;
-            font-size: 12px;
-            margin-bottom: 8px;
-            padding: 0 5px;
-            white-space: nowrap;
-        }
-
-        .timeline-container {
-            position: relative;
-            height: auto;
-            background: #eee;
-            border: 1px solid #ccc;
-            padding: 10px 0;
-            overflow-x: auto;
-        }
-
-        .task-row {
-            position: relative;
-            height: 30px;
-            margin: 6px 0;
-        }
-
-        .task-bar {
-            position: absolute;
-            height: 100%;
-            background: #4caf50;
-            color: white;
-            font-size: 12px;
-            line-height: 30px;
-            padding-left: 5px;
-            border-radius: 4px;
-            white-space: nowrap;
-            overflow: hidden;
-        }
-
-        .task-time {
-            font-size: 11px;
-            color: #333;
-            margin-top: 2px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>日報グラフ</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+    }
+    .person {
+      margin-bottom: 40px;
+    }
+    .name {
+      font-weight: bold;
+      margin-bottom: 5px;
+      font-size: 18px;
+    }
+    .bar-container {
+      position: relative;
+      height: 30px;
+      background: #f0f0f0;
+      border: 1px solid #ccc;
+      margin: 6px 0;
+    }
+    .bar {
+      position: absolute;
+      height: 100%;
+      color: #333;
+      font-size: 11px;
+      padding-left: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .label-row {
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: #555;
+    }
+    .timeline {
+      position: relative;
+      height: 20px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #999;
+    }
+    .timeline span {
+      position: absolute;
+      top: 0;
+      transform: translateX(-50%);
+      font-size: 10px;
+      color: #666;
+    }
+  </style>
 </head>
 <body>
+  <h2>📊 {{ date }} の日報グラフ</h2>
 
-    <h2>📊 作業タイムライン</h2>
-
-    {% set day_start = 8 * 60 + 30 %}
-    {% set day_end = 17 * 60 + 30 %}
-    {% set break_start = 12 * 60 %}
-    {% set break_end = 13 * 60 %}
-    {% set total_minutes = (day_end - day_start) - (break_end - break_start) %}
-
-    {% for (date, name), entries in grouped.items() %}
-        <div class="card">
-            <h3>{{ date }} - {{ name }} さん</h3>
-
-            <!-- 時間ラベル -->
-            <div class="timeline-labels">
-                <div>8:30</div>
-                <div>9:00</div>
-                <div>10:00</div>
-                <div>11:00</div>
-                <div>12:00</div>  <!-- 視覚上残しておく -->
-                <div>13:00</div>
-                <div>14:00</div>
-                <div>15:00</div>
-                <div>16:00</div>
-                <div>17:00</div>
-                <div>17:30</div>
-            </div>
-
-            <!-- タスクバー -->
-            <div class="timeline-container">
-                <div class="task-row">
-                    {% for r in entries %}
-                        {% set start = r.start_hour * 60 + r.start_minute %}
-                        {% set end = r.end_hour * 60 + r.end_minute %}
-                        {% set duration = end - start %}
-
-                        {# 昼休みを除いたオフセットと長さを計算 #}
-                        {% set adj_start = start if start < break_start else start - 60 %}
-                        {% set offset = ((adj_start - day_start) / total_minutes * 100) %}
-
-                        {% set adj_duration = duration %}
-                        {% if start < break_start and end > break_end %}
-                            {% set adj_duration = duration - 60 %}
-                        {% elif start < break_start and end > break_start %}
-                            {% set adj_duration = break_start - start %}
-                        {% elif start < break_end and end > break_end %}
-                            {% set adj_duration = end - break_end %}
-                        {% elif start >= break_start and end <= break_end %}
-                            {% set adj_duration = 0 %}
-                        {% endif %}
-
-                        {% set width = (adj_duration / total_minutes * 100) %}
-
-                        {% if adj_duration > 0 %}
-                            <div class="task-bar" style="left:{{ offset | round(2) }}%; width:{{ width | round(2) }}%;">
-                                {{ r.title }}
-                            </div>
-                        {% endif %}
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
+  <!-- タイムライン -->
+  <div class="timeline">
+    {% for hour in range(8, 18) %}
+      {% if hour != 12 %}
+        <span style="left: {{ (loop.index0 * 100 / 8) }}%;">{{ hour }}:00</span>
+      {% endif %}
     {% endfor %}
+  </div>
+
+  {% for person in data %}
+    <div class="person">
+      <div class="name">{{ person.name }}</div>
+
+      {% for entry in person.entries %}
+        <div class="bar-container">
+          {% if entry.before %}
+            <div class="bar" style="
+              left: {{ time_to_percent(entry.before.start) }}%;
+              width: {{ time_range_percent(entry.before.start, entry.before.end) }}%;
+              background-color: {{ entry.before.color }};
+            "></div>
+          {% endif %}
+
+          <div class="bar" style="
+            left: {{ time_to_percent(entry.main.start) }}%;
+            width: {{ time_range_percent(entry.main.start, entry.main.end) }}%;
+            background-color: {{ entry.main.color }};
+          ">
+            {{ entry.main.title }}
+          </div>
+
+          {% if entry.after %}
+            <div class="bar" style="
+              left: {{ time_to_percent(entry.after.start) }}%;
+              width: {{ time_range_percent(entry.after.start, entry.after.end) }}%;
+              background-color: {{ entry.after.color }};
+            "></div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% endfor %}
 </body>
 </html>
