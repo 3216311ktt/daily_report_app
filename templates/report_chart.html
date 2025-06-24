@@ -2,100 +2,173 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>日報グラフ</title>
+  <title>日報タイムライン表示</title>
   <style>
     body {
+      max-width: 960px;
+      margin: 0 auto;
       font-family: sans-serif;
       padding: 20px;
     }
-    .person {
-      margin-bottom: 40px;
-    }
-    .name {
-      font-weight: bold;
-      margin-bottom: 5px;
-      font-size: 18px;
-    }
-    .bar-container {
-      position: relative;
-      height: 30px;
-      background: #f0f0f0;
+
+    .timeline-wrapper {
+      overflow-x: auto;
       border: 1px solid #ccc;
-      margin: 6px 0;
+      padding: 4px;
+      margin-top: 5px;
     }
-    .bar {
-      position: absolute;
-      height: 100%;
-      color: #333;
-      font-size: 11px;
-      padding-left: 4px;
-      white-space: nowrap;
-      overflow: hidden;
-    }
-    .label-row {
-      margin-bottom: 10px;
-      font-size: 13px;
-      color: #555;
-    }
+
     .timeline {
-      position: relative;
-      height: 20px;
-      margin-bottom: 10px;
-      border-bottom: 1px solid #999;
+      display: inline-flex;
     }
-    .timeline span {
-      position: absolute;
-      top: 0;
-      transform: translateX(-50%);
+
+    .slot {
+      flex: 0 0 auto;
+      width: 26px;
+      padding: 4px 2px;
+      text-align: left;
       font-size: 10px;
-      color: #666;
+      border-right: 1px solid #eee;
+      border-bottom: 1px solid #eee;
+      user-select: none;
+      padding-left: 2px;
+    }
+
+    .slot.selected {
+      background-color: #90ee90;
+    }
+
+    .slot.excluded {
+      background-color: #ddd !important;
+      cursor: default;
+    }
+
+    .slot.selected.excluded {
+      background-color: #ddd !important; /* 選択かつ除外でも除外色優先 */
+    }
+
+    .slot.disabled {
+      background-color: #f0f0f0;
+    }
+
+    .slot.bold-left {
+      border-left: 2px solid #555;
+    }
+
+    .report-card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+      background: #f9f9f9;
+    }
+
+    .label {
+      font-weight: bold;
+    }
+
+    form {
+      margin-bottom: 20px;
     }
   </style>
 </head>
 <body>
-  <h2>📊 {{ date }} の日報グラフ</h2>
 
-  <!-- タイムライン -->
-  <div class="timeline">
-    {% for hour in range(8, 18) %}
-      {% if hour != 12 %}
-        <span style="left: {{ (loop.index0 * 100 / 8) }}%;">{{ hour }}:00</span>
-      {% endif %}
-    {% endfor %}
-  </div>
+<h2>📊 日報表示</h2>
 
-  {% for person in data %}
-    <div class="person">
-      <div class="name">{{ person.name }}</div>
-
-      {% for entry in person.entries %}
-        <div class="bar-container">
-          {% if entry.before %}
-            <div class="bar" style="
-              left: {{ time_to_percent(entry.before.start) }}%;
-              width: {{ time_range_percent(entry.before.start, entry.before.end) }}%;
-              background-color: {{ entry.before.color }};
-            "></div>
-          {% endif %}
-
-          <div class="bar" style="
-            left: {{ time_to_percent(entry.main.start) }}%;
-            width: {{ time_range_percent(entry.main.start, entry.main.end) }}%;
-            background-color: {{ entry.main.color }};
-          ">
-            {{ entry.main.title }}
-          </div>
-
-          {% if entry.after %}
-            <div class="bar" style="
-              left: {{ time_to_percent(entry.after.start) }}%;
-              width: {{ time_range_percent(entry.after.start, entry.after.end) }}%;
-              background-color: {{ entry.after.color }};
-            "></div>
-          {% endif %}
-        </div>
+<form method="get" action="/chart">
+  <label>名前:
+     <select name="name">
+      <option value="">--全員--</option>
+      {% for n in name_list %}
+      <option value="{{ n }}" {% if n == name %}selected{% endif %}>{{ n }}</option>
       {% endfor %}
+     </select>
+  </label>
+     
+  <label>日付: <input type="date" name="date" value="{{ date or '' }}"></label>
+  <button type="submit">検索</button>
+</form>
+
+{% if reports %}
+{% set shown_dates = [] %}
+  {% for report in reports %}
+    <div class="report-card">
+      <div><span class="label">日付:</span> {{ report.date }}　｜　<span class="label">名前:</span> {{ report.name }}</div>
+      <div><span class="label">件名:</span> {{ report.title }}　｜　<span class="label">作業内容:</span> {{ report.task }}</div>
+      {% if report.partner %}
+        <div><span class="label">同行者:</span> {{ report.partner }}</div>
+      {% endif %}
+      {% if report.overtime_before %}
+        <div><span class="label">前残業:</span>
+          {{ report.overtime_before // 60 }} 時間
+          {{ report.overtime_before % 60 }} 分
+        </div>
+      {% endif %}
+      {% if report.overtime_after %}
+        <div><span class="label">後残業:</span>
+         {{ report.overtime_after // 60 }} 時間
+         {{ report.overtime_after % 60 }} 分
+        </div>
+      {% endif %}
+        <div><span class="label">この作業時間:</span>
+          {{ (report.total_minutes or 0) // 60 }} 時間
+          {{ (report.total_minutes or 0) % 60 }} 分
+        </div>
+      {% if report.date not in shown_dates %}
+        <div><span class="label">その日の合計:</span>
+         {{ (daily_totals[report.date] or 0) // 60 }} 時間
+         {{ (daily_totals[report.date] or 0) % 60 }} 分
+        </div>
+        {% set _ = shown_dates.append(report.date) %}
+      {% endif %}
+
+
+      <div class="timeline-wrapper">
+        <div class="timeline">
+          {% for hour in range(8, 18) %}
+            {% for minute in [0, 30] %}
+              {% set time = hour * 60 + minute %}
+              {% set time_str = '{}:{:02d}'.format(hour, minute) %}
+
+              {# ⛔️ 除外時間帯かどうかチェック #}
+              {% set excluded = time in [480, 720, 750, 1050] %}  {# 8:00, 12:00, 12:30, 17:30 #}
+
+              {% set is_selected = (not excluded and report.start_hour is not none and report.start_minute is not none
+                and report.end_hour is not none and report.end_minute is not none
+                and (report.start_hour * 60 + report.start_minute) <= time <= (report.end_hour * 60 + report.end_minute)) %}
+
+              {# 線を太くする時間帯（8:30 / 17:30）#}
+              {% set bold_left = time in [510, 1050] %}
+                
+              <div class="slot
+                          {% if is_selected %}selected{% endif %}
+                          {% if excluded %}excluded{% endif %}
+                          {% if bold_left %}bold-left{% endif %}">
+                {{ hour if minute == 0 else '' }}
+              </div>
+            {% endfor %}
+          {% endfor %}
+        </div>
+      </div>
     </div>
   {% endfor %}
+  {% if name and reports %}
+  <!-- ループ表示... -->
+
+    <hr>
+    <div style="font-weight: bold; font-size: 16px; margin-top: 20px;">
+      📆 月の作業時間累計 ({{ name }}さん):
+                          {{ monthly_total // 60 }} 時間
+                          {{ monthly_total % 60 }} 分
+    </div>
+  {% endif %}
+
+{% else %}
+  <p>該当するレポートが見つかりません。</p>
+{% endif %}
+
+<a href="/">←　入力画面</a>
 </body>
 </html>
+
