@@ -21,7 +21,10 @@ db.init_app(app)
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    # データベースから名前の一覧を取得
+    name_list = db.session.query(DailyReport.name).distinct().order_by(DailyReport.name).all()
+    name_list = [n[0] for n in name_list]
+    return render_template('index.html', name_list=name_list)
 
 @app.route('/submit', methods=['POST'])
 def submit():

@@ -99,6 +99,12 @@
 
 <h2>📝 日報入力</h2>
 <tr>
+  <label for="nameSelect">名前</label>
+  <select id="nameSelect">
+    {% for n in name_list %}
+    <option value="{{ n }}">{{ n }}</option>
+    {% endfor %}
+  </select>
   <label for="dateInput"> 日付を選択</label>
   <input type="date" id="dateInput" name="date">
   <label for="entryCountSelector">件名数</label>
@@ -409,10 +415,13 @@
   });
 
   function submitReports() {
-    console.log("submitReports() 発動");
-    const name = prompt("名前を入力してください");
-    if (!name) return;
-
+    const nameSelect = document.getElementById("nameSelect");
+    const name = nameSelect.value;
+    if (!name) {
+      alert("名前を選択して下さい");
+      return;
+  }
+  
     const reports = allEntries.map(entry => {
       const selectedSlots = entry.slots.filter(s => s.classList.contains('selected'));
       const workMinutes = selectedSlots.length * 30;
