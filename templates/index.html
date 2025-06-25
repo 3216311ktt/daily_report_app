@@ -99,12 +99,15 @@
 
 <h2>📝 日報入力</h2>
 <tr>
-  <label for="nameSelect">名前</label>
-  <select id="nameSelect">
+  <label>名前</label>
+  <select id="nameSelect" onchange="toggleNameInpit()">
+    <option value="">選択してください</option>
     {% for n in name_list %}
     <option value="{{ n }}">{{ n }}</option>
     {% endfor %}
+    <option value="__other__">その他（新規入力）</option>
   </select>
+  <input type="text" id="customName" placeholder="名前入力" style="display: none;">
   <label for="dateInput"> 日付を選択</label>
   <input type="date" id="dateInput" name="date">
   <label for="entryCountSelector">件名数</label>
@@ -414,13 +417,34 @@
     entry.overtimeAfter.addEventListener('change', updateAllTotals);
   });
 
+  function toggleNameInpit() {
+    const nameSelect = document.getElementById("nameSelect");
+    const customName = document.getElementById("customName");
+    if (nameSelect.value === "__other__") {
+      customName.style.display = "inline-block";
+    } else {
+      customName.style.display = "none";
+    }
+  }
+
   function submitReports() {
     const nameSelect = document.getElementById("nameSelect");
-    const name = nameSelect.value;
-    if (!name) {
-      alert("名前を選択して下さい");
-      return;
-  }
+    const customName = document.getElementById("customName");
+    let name = "";
+
+    if (nameSelect.value === "__other__") {
+      name = customName.value.trim();
+      if (!name) {
+        alert("名前を入力してください");
+        return;
+      } 
+    } else {
+      name = nameSelect.value;
+      if (!name) {
+        alert("名前を選択してください");
+        return;
+      }
+    }
   
     const reports = allEntries.map(entry => {
       const selectedSlots = entry.slots.filter(s => s.classList.contains('selected'));

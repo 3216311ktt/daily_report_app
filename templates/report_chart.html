@@ -47,28 +47,70 @@
       background-color: #ddd !important; /* 選択かつ除外でも除外色優先 */
     }
 
-    .slot.disabled {
-      background-color: #f0f0f0;
-    }
-
     .slot.bold-left {
       border-left: 2px solid #555;
     }
 
-    .report-card {
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 16px;
-      background: #f9f9f9;
+    .slot.before-overtime {
+      background-color: #ffd8b1 !important;
+    }
+
+    .slot.after-overtime {
+      background-color: #ffd8b1 !important; 
     }
 
     .label {
       font-weight: bold;
     }
 
+    .label-overtime {
+      font-weight: bold;
+      background-color: #ffd8b1 !important;
+    }
+
     form {
       margin-bottom: 20px;
+    }
+
+    .daily-group {
+      border-top: 2px solid #0077cc;
+      margin-top: 40px;
+      padding-top: 10px;
+    }
+
+    .person-group {
+      border-left: 4px solid #ccc;
+      padding-left: 10px;
+      margin-top: 15px;
+      margin-bottom: 15px;
+    }
+
+    .person-group h4 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      border-bottom: 1px dashed #aaa;
+      padding-bottom: 4px;
+    }
+
+    .report-card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      background: #f9f9f9;
+    }
+
+    .daily-person-group {
+      border-top: 3px solid #0077cc;
+      margin-top: 40px;
+      padding-top: 10px;
+      background-color: #f9f9f9;
+    }
+
+    .daily-person-group h3 {
+      font-size: 18px;
+      margin-bottom: 12px;
+      border-bottom: 1px dashed #aaa;
     }
   </style>
 </head>
@@ -92,7 +134,20 @@
 
 {% if reports %}
 {% set shown_dates = [] %}
+{% set ns = namespace(current_key=None) %}
+
   {% for report in reports %}
+    {% set this_key = report.date ~ '_' ~ report.name %}
+
+    {% if this_key != ns.current_key %}
+      {% if ns.current_key is not none %}
+        </section>
+      {% endif %}
+      <section class="daily-group">
+        <h3>📅 {{ report.date }}｜👤 {{ report.name }}</h3>
+        {% set ns.current_key = this_key %}
+    {% endif %}
+
     <div class="report-card">
       <div><span class="label">日付:</span> {{ report.date }}　｜　<span class="label">名前:</span> {{ report.name }}</div>
       <div><span class="label">件名:</span> {{ report.title }}　｜　<span class="label">作業内容:</span> {{ report.task }}</div>
@@ -100,13 +155,13 @@
         <div><span class="label">同行者:</span> {{ report.partner }}</div>
       {% endif %}
       {% if report.overtime_before %}
-        <div><span class="label">前残業:</span>
+        <div><span class="label-overtime">前残業:</span>
           {{ report.overtime_before // 60 }} 時間
           {{ report.overtime_before % 60 }} 分
         </div>
       {% endif %}
       {% if report.overtime_after %}
-        <div><span class="label">後残業:</span>
+        <div><span class="label-overtime">後残業:</span>
          {{ report.overtime_after // 60 }} 時間
          {{ report.overtime_after % 60 }} 分
         </div>
@@ -123,13 +178,30 @@
         {% set _ = shown_dates.append(report.date) %}
       {% endif %}
 
+      <div style="display: flex; align-items: center;">
+        <!-- 左：前残業表示 -->
+        {% if report.overtime_before %}
+          <div style="min-width: 80px; color: #cc5500; font-weight: bold;">
+            ⏱ {{ report.overtime_before // 60 }}h {{ report.overtime_before % 60 }}m
+          </div>
+        {% else %}
+          <div style="min-width: 80px;"></div>
+        {% endif %}
 
-      <div class="timeline-wrapper">
+      <div class="timeline-wrapper" style="flex-grow: 1;">
         <div class="timeline">
           {% for hour in range(8, 18) %}
             {% for minute in [0, 30] %}
               {% set time = hour * 60 + minute %}
               {% set time_str = '{}:{:02d}'.format(hour, minute) %}
+              {% set time_in_minutes = time %}
+
+              {% set work_start = report.start_hour * 60 + report.start_minute if report.start_hour is not none else None %}
+              {% set work_end = report.end_hour * 60 + report.end_minute if report.end_hour is not none else None %}
+
+              {% set is_before_overtime = report.overtime_before and work_start is not none and time_in_minutes >= work_start - report.overtime_before and time_in_minutes < work_start %}
+              {% set is_after_overtime = report.overtime_after and work_end is not none and time_in_minutes > work_end and time_in_minutes <= work_end + report.overtime_after %}
+
 
               {# ⛔️ 除外時間帯かどうかチェック #}
               {% set excluded = time in [480, 720, 750, 1050] %}  {# 8:00, 12:00, 12:30, 17:30 #}
@@ -144,15 +216,33 @@
               <div class="slot
                           {% if is_selected %}selected{% endif %}
                           {% if excluded %}excluded{% endif %}
-                          {% if bold_left %}bold-left{% endif %}">
+                          {% if bold_left %}bold-left{% endif %}
+                          {% if is_before_overtime %}before-overtime{% endif %}
+                          {% if is_after_overtime %}after-overtime{% endif %}
+                          ">
                 {{ hour if minute == 0 else '' }}
               </div>
             {% endfor %}
           {% endfor %}
         </div>
       </div>
+
+        <!-- 右：後残業表示 -->
+        {% if report.overtime_after %}
+          <div style="min-width: 80px; color: #cc5500; font-weight: bold;">
+            ⏱ {{ report.overtime_after // 60 }}h {{ report.overtime_after % 60 }}m
+          </div>
+        {% else %}
+          <div style="min-width: 80px;"></div>
+        {% endif %}
     </div>
+    </div>
+    
   {% endfor %}
+  <!-- ループ終了 -->
+  {% if current_key is not none %}
+    </section>
+  {% endif %}
   {% if name and reports %}
   <!-- ループ表示... -->
 
