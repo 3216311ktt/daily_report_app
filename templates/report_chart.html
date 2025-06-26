@@ -2,117 +2,9 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <link rel="stylesheet" href="static/report_chart_style.css">
   <title>日報タイムライン表示</title>
-  <style>
-    body {
-      max-width: 960px;
-      margin: 0 auto;
-      font-family: sans-serif;
-      padding: 20px;
-    }
-
-    .timeline-wrapper {
-      overflow-x: auto;
-      border: 1px solid #ccc;
-      padding: 4px;
-      margin-top: 5px;
-    }
-
-    .timeline {
-      display: inline-flex;
-    }
-
-    .slot {
-      flex: 0 0 auto;
-      width: 26px;
-      padding: 4px 2px;
-      text-align: left;
-      font-size: 10px;
-      border-right: 1px solid #eee;
-      border-bottom: 1px solid #eee;
-      user-select: none;
-      padding-left: 2px;
-    }
-
-    .slot.selected {
-      background-color: #90ee90;
-    }
-
-    .slot.excluded {
-      background-color: #ddd !important;
-      cursor: default;
-    }
-
-    .slot.selected.excluded {
-      background-color: #ddd !important; /* 選択かつ除外でも除外色優先 */
-    }
-
-    .slot.bold-left {
-      border-left: 2px solid #555;
-    }
-
-    .slot.before-overtime {
-      background-color: #ffd8b1 !important;
-    }
-
-    .slot.after-overtime {
-      background-color: #ffd8b1 !important; 
-    }
-
-    .label {
-      font-weight: bold;
-    }
-
-    .label-overtime {
-      font-weight: bold;
-      background-color: #ffd8b1 !important;
-    }
-
-    form {
-      margin-bottom: 20px;
-    }
-
-    .daily-group {
-      border-top: 2px solid #0077cc;
-      margin-top: 40px;
-      padding-top: 10px;
-    }
-
-    .person-group {
-      border-left: 4px solid #ccc;
-      padding-left: 10px;
-      margin-top: 15px;
-      margin-bottom: 15px;
-    }
-
-    .person-group h4 {
-      margin: 0 0 8px;
-      font-size: 16px;
-      border-bottom: 1px dashed #aaa;
-      padding-bottom: 4px;
-    }
-
-    .report-card {
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 12px;
-      background: #f9f9f9;
-    }
-
-    .daily-person-group {
-      border-top: 3px solid #0077cc;
-      margin-top: 40px;
-      padding-top: 10px;
-      background-color: #f9f9f9;
-    }
-
-    .daily-person-group h3 {
-      font-size: 18px;
-      margin-bottom: 12px;
-      border-bottom: 1px dashed #aaa;
-    }
-  </style>
+  
 </head>
 <body>
 
@@ -170,12 +62,13 @@
           {{ (report.total_minutes or 0) // 60 }} 時間
           {{ (report.total_minutes or 0) % 60 }} 分
         </div>
-      {% if report.date not in shown_dates %}
+      {% set date_name_key = report.date ~ '_' ~ report.name %}
+      {% if date_name_key not in shown_dates %}
         <div><span class="label">その日の合計:</span>
-         {{ (daily_totals[report.date] or 0) // 60 }} 時間
-         {{ (daily_totals[report.date] or 0) % 60 }} 分
+         {{ (daily_totals[report.date ~ '_' ~ report.name] or 0) // 60 }} 時間
+         {{ (daily_totals[report.date ~ '_' ~ report.name] or 0) % 60 }} 分
         </div>
-        {% set _ = shown_dates.append(report.date) %}
+        {% set _ = shown_dates.append(date_name_key) %}
       {% endif %}
 
       <div style="display: flex; align-items: center;">

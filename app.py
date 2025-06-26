@@ -120,7 +120,8 @@ def report_chart():
     daily_totals = defaultdict(int)
     monthly_total = 0
     for report in reports:
-        daily_totals[report.date] += report.total_minutes or 0
+        key = f"{report.date}_{report.name}"
+        daily_totals[key] += report.total_minutes or 0
         monthly_total += report.total_minutes or 0
     
     # 月の合計を求める
