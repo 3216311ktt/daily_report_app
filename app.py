@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 from operator import attrgetter
 from sqlalchemy import func
+from holiday_manager import HolidayManager
+holiday_checker = HolidayManager('static/company_holidays.csv')
 
 # なければ作成
 if not os.path.exists('db'):
@@ -119,10 +121,17 @@ def report_chart():
     # 日別合計
     daily_totals = defaultdict(int)
     monthly_total = 0
+    holiday_info = {}
+
     for report in reports:
         key = f"{report.date}_{report.name}"
         daily_totals[key] += report.total_minutes or 0
         monthly_total += report.total_minutes or 0
+
+        if holiday_checker.is_holiday(report.date):
+            holiday_info[key] = True
+        else:
+            holiday_info[key] = False
     
     # 月の合計を求める
     total_minutes = None
@@ -143,7 +152,8 @@ def report_chart():
                            date=date,
                            daily_totals=daily_totals,
                            monthly_total=monthly_total,
-                           name_list=name_list
+                           name_list=name_list,
+                           holiday_info=holiday_info
                            )
     
 

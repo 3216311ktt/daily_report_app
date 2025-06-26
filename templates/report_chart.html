@@ -46,6 +46,10 @@
       {% if report.partner %}
         <div><span class="label">同行者:</span> {{ report.partner }}</div>
       {% endif %}
+      {% set this_key = report.date ~ '_' ~ report.name %}
+      {% if holiday_info[this_key] %}
+        <div style="color: red; font-weight: bold;">※休日出勤</div>
+      {% endif %}
       {% if report.overtime_before %}
         <div><span class="label-overtime">前残業:</span>
           {{ report.overtime_before // 60 }} 時間
