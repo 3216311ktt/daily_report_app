@@ -6,7 +6,7 @@ from collections import defaultdict
 from operator import attrgetter
 from sqlalchemy import func
 from holiday_manager import HolidayManager
-holiday_checker = HolidayManager('static/company_holidays.csv')
+holiday_checker = HolidayManager('static/company_calendar.csv')
 
 # なければ作成
 if not os.path.exists('db'):
@@ -20,6 +20,12 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] =False
 db.init_app(app)
+
+
+# 土曜出勤、祝日、会社休日の情報を取得
+@app.route('/calendar')
+def show_calendar():
+    return render_template('calendar.html', calendar=holiday_checker.calendar_list)
 
 @app.route('/')
 def index():

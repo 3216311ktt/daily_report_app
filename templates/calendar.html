@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ja">
+    <head>
+        <meta charset="UTF-8">
+        <title>会社カレンダー一覧</title>
+        <style>
+            table { border-collapse: collapse; width: 60%; }
+            th, td { border: 1px solid #333; padding: 8px; }
+            th { background-color: #f0f0f0; }
+            .holiday { color: red; }
+            .workday { color: green; }
+        </style>
+    </head>
+    <body>
+        <h1>📅 会社カレンダー一覧</h1>
+        <table>
+            <tr>
+                <th>日付</th>
+                <th>説明</th>
+                <th>種別</th>
+            </tr>
+            {% for row in calendar %}
+            <tr>
+                <td>{{ row.date }}</td>
+                <td>{{ row.description }}</td>
+                <td class="{% if row.type == 'holiday' %}holiday{% elif row.type == 'workday' %}workday{% endif %}">
+                    {{ row.type }}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </body>
+</html>
