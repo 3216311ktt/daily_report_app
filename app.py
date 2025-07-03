@@ -1,4 +1,5 @@
 import os
+import jpholiday
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from models import db, DailyReport
 from datetime import datetime, timedelta
@@ -7,6 +8,7 @@ from operator import attrgetter
 from sqlalchemy import func
 from datetime import datetime
 from holiday_manager import HolidayManager
+
 holiday_checker = HolidayManager('static/company_calendar.csv')
 
 # なければ作成
@@ -29,23 +31,57 @@ def calendar():
     return render_template('calendar.html')
 
 @app.route('/api/calendar')
-
 def api_calendar():
     events = []
+
+    # 会社独自カレンダー
+    current_year = datetime.now().year
+    years = range(current_year - 1, current_year + 2)
+
     for row in holiday_checker.company_calendar:
         # 年なしは仮に今年を付けておく
         date_str = row['date']
-        if len(date_str) == 5:
-            
-            this_year = datetime.now().year
-            date_str = f"{this_year}-{date_str}"
+        is_yearless = len(date_str) == 5
 
-        color = '#f00' if row['type'] == 'holiday' else '#0a0'
-        events.append({
-            "title": row['description'],
-            "start": date_str,
-            "color": color
-        })
+        for year in years:
+            if is_yearless:
+                full_date = f"{year}-{date_str}"
+            else:
+                if int(date_str[:4]) != year:
+                    continue
+                full_date = date_str
+
+            # 無効な日付はスキップ
+            try:
+                datetime.strptime(full_date, '%Y-%m-%d')
+            except ValueError:
+                continue
+            
+            color = '#f00' if row['type'] == 'holiday' else '#0a0'
+
+            events.append({
+                "title": row['description'],
+                "start": full_date,
+                "color": color
+            })
+
+    # jpholidayの祝日
+    now_year = datetime.now().year
+    for year in range(now_year - 1, now_year +2):
+
+        for date_obj, name in jpholiday.year_holidays(year):
+            date_str = date_obj.strftime('%Y-%m-%d')
+
+            # すでに会社休日として登録されていればスキップ
+            if any(e['start'] == date_str for e in events):
+                continue
+
+            events.append({
+                "title": name,
+                "start": date_str,
+                "color": "#ff9999"
+            })
+
     return jsonify(events)
 
 @app.route('/api/update', methods=['POST'])
