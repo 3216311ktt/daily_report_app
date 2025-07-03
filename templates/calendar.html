@@ -1,33 +1,80 @@
 <!DOCTYPE html>
 <html lang="ja">
-    <head>
-        <meta charset="UTF-8">
-        <title>会社カレンダー一覧</title>
-        <style>
-            table { border-collapse: collapse; width: 60%; }
-            th, td { border: 1px solid #333; padding: 8px; }
-            th { background-color: #f0f0f0; }
-            .holiday { color: red; }
-            .workday { color: green; }
-        </style>
-    </head>
-    <body>
-        <h1>📅 会社カレンダー一覧</h1>
-        <table>
-            <tr>
-                <th>日付</th>
-                <th>説明</th>
-                <th>種別</th>
-            </tr>
-            {% for row in calendar %}
-            <tr>
-                <td>{{ row.date }}</td>
-                <td>{{ row.description }}</td>
-                <td class="{% if row.type == 'holiday' %}holiday{% elif row.type == 'workday' %}workday{% endif %}">
-                    {{ row.type }}
-                </td>
-            </tr>
-            {% endfor %}
-        </table>
-    </body>
+<head>
+  <meta charset="UTF-8">
+  <title>会社カレンダー</title>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    #calendar { max-width: 900px; margin: 40px auto; }
+    #modal { display: none; position: fixed; top: 30%; left: 50%; transform: translate(-50%, -30%); background: #fff; padding: 20px; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <h1>📅 会社カレンダー</h1>
+  <div id="calendar"></div>
+
+  <!-- モーダル -->
+  <div id="modal">
+    <h3 id="modal-date"></h3>
+    <label>種別:</label>
+    <select id="modal-type">
+      <option value="holiday">holiday</option>
+      <option value="workday">workday</option>
+    </select><br><br>
+    <label>説明:</label>
+    <input type="text" id="modal-description"><br><br>
+    <button onclick="saveEvent()">保存</button>
+    <button onclick="closeModal()">キャンセル</button>
+  </div>
+
+  <script>
+    let selectedDate = '';
+    const modal = document.getElementById('modal');
+
+    function openModal(dateStr) {
+      selectedDate = dateStr;
+      document.getElementById('modal-date').textContent = `選択日: ${dateStr}`;
+      modal.style.display = 'block';
+    }
+
+    function closeModal() {
+      modal.style.display = 'none';
+    }
+
+    function saveEvent() {
+      const type = document.getElementById('modal-type').value;
+      const description = document.getElementById('modal-description').value;
+
+      axios.post('/api/update', {
+        date: selectedDate,
+        type: type,
+        description: description
+      }).then(() => {
+        closeModal();
+        location.reload();
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const calendarEl = document.getElementById('calendar');
+      console.log('calendarEl:', calendarEl);
+
+      const calendar = new FullCalendar.Calendar(calendarEl, {
+        locale: 'ja',
+        initialView: 'dayGridMonth',
+        events: '/api/calendar',
+          eventDidMount: function(info) {
+        console.log('イベント:', info.event);
+      },
+        dateClick: function(info) {
+          openModal(info.dateStr);
+        }
+      });
+      calendar.render();
+      console.log('FullCalendar initialized!');
+    });
+  </script>
+</body>
 </html>

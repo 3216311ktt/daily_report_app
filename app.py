@@ -1,10 +1,11 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 from models import db, DailyReport
 from datetime import datetime, timedelta
 from collections import defaultdict
 from operator import attrgetter
 from sqlalchemy import func
+from datetime import datetime
 from holiday_manager import HolidayManager
 holiday_checker = HolidayManager('static/company_calendar.csv')
 
@@ -24,8 +25,54 @@ db.init_app(app)
 
 # 土曜出勤、祝日、会社休日の情報を取得
 @app.route('/calendar')
-def show_calendar():
-    return render_template('calendar.html', calendar=holiday_checker.calendar_list)
+def calendar():
+    return render_template('calendar.html')
+
+@app.route('/api/calendar')
+
+def api_calendar():
+    events = []
+    for row in holiday_checker.company_calendar:
+        # 年なしは仮に今年を付けておく
+        date_str = row['date']
+        if len(date_str) == 5:
+            
+            this_year = datetime.now().year
+            date_str = f"{this_year}-{date_str}"
+
+        color = '#f00' if row['type'] == 'holiday' else '#0a0'
+        events.append({
+            "title": row['description'],
+            "start": date_str,
+            "color": color
+        })
+    return jsonify(events)
+
+@app.route('/api/update', methods=['POST'])
+def api_update():
+    data = request.json
+    date = data.get('date').strip()
+    description = data.get('description').strip()
+    day_type = data.get('type').strip()
+
+    # 既存データ更新 or 新規追加
+    found = False
+    for row in holiday_checker.company_calendar:
+        if row['date'] == date:
+            row['description'] = description
+            row['type'] = day_type
+            found = True
+            break
+    if not found:
+        holiday_checker.company_calendar.append({
+            'date': date,
+            'description': description,
+            'type': day_type
+        })
+
+    holiday_checker.save_calendar()
+    return jsonify({'status': 'success'})
+
 
 @app.route('/')
 def index():
