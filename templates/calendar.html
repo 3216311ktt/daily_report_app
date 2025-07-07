@@ -38,7 +38,31 @@
   </style>
 </head>
 <body>
+
+<tr>
   <h1>📅 会社カレンダー</h1>
+  <!-- ボタン -->
+  <div style="text-align: center; margin-top: 20px;">
+    <button onclick="showCalendar()">📅 カレンダー表示</button>
+    <button onclick="showList()">📋 一覧表示</button>
+  </div>
+</tr>
+
+<!-- 一覧表示テーブル -->
+<div id="list-view" style="max-width: 900px; margin: 40px auto; display: none;">
+  <table border="1" width="100%" id="holiday-table">
+    <thead>
+      <tr>
+        <th>日付</th>
+        <th>曜日</th>
+        <th>種別</th>
+        <th>説明</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
   <div id="calendar"></div>
 
   <div id="overlay"></div>
@@ -106,6 +130,47 @@
       calendar.render();
       console.log('FullCalendar initialized!');
     });
+
+    // カレンダー表示に戻す
+    function showCalendar() {
+      document.getElementById('list-view').style.display = 'none';
+      document.getElementById('calendar').style.display = 'block';
+    }
+
+    // 一覧表示
+    function showList() {
+      document.getElementById('calendar').style.display = 'none';
+      document.getElementById('list-view').style.display = 'block';
+
+      axios.get('/api/calendar').then(response => {
+        const tbody = document.querySelector('#holiday-table tbody');
+        tbody.innerHTML = '';
+
+        response.data.forEach(event => {
+          const date =new Date(event.start);
+          const weekday = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()];
+
+          // 色で種別を判定
+          let type = '';
+          if (event.color === '#f00') {
+            type = 'holiday';
+          }else if (event.color === '#0a0') {
+            type = 'workday';
+          }else if (event.color === '#ff9999') {
+            type = '祝日';
+          }
+
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${event.start}</td>
+            <td>${weekday}</td>
+            <td>${type}</td>
+            <td>${event.title}</td>
+            `;
+          tbody.appendChild(row);
+        });
+      });
+    }
   </script>
 </body>
 </html>
