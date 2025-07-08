@@ -8,6 +8,8 @@ from operator import attrgetter
 from sqlalchemy import func
 from datetime import datetime
 from holiday_manager import HolidayManager
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 
 holiday_checker = HolidayManager('static/company_calendar.csv')
 
@@ -24,6 +26,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] =False
 db.init_app(app)
 
+migrate = Migrate(app, db)
 
 # 土曜出勤、祝日、会社休日の情報を取得
 @app.route('/calendar')
@@ -150,6 +153,7 @@ def submit():
             overtime_before=entry.get('overtime_before'),
             overtime_after=entry.get('overtime_after'),
             total_minutes=entry.get('total_minutes'),
+            paid_leave_minutes=entry.get('paid_leave_minutes', 0),
             date=date
         )
         db.session.add(report)

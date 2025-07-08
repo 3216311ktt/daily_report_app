@@ -94,9 +94,20 @@
     partnerInput.placeholder = `同行者`;
     partnerInput.className = 'partner';
 
+    // 有給入力欄を作成
+    const paidLeaveInput = document.createElement('input');
+    paidLeaveInput.type = 'number';
+    paidLeaveInput.step= '0.5';
+    paidLeaveInput.placeholder = '有給(時間)';
+    paidLeaveInput.className = 'paid_leave';
+    paidLeaveInput.min = 0;
+    paidLeaveInput.style.marginTop = '4px';
+    paidLeaveInput.style.width ='120px'
+
     fieldRow.appendChild(titleInput);
     fieldRow.appendChild(taskInput);
     fieldRow.appendChild(partnerInput);
+    fieldRow.appendChild(paidLeaveInput);
     wrapper.appendChild(fieldRow);
 
     const timelineRow = document.createElement('div');
@@ -380,6 +391,10 @@
       const fieldRow = entry.slots[0].closest('.entry').querySelector('.entry-fields');
       const inputs = fieldRow.querySelectorAll('input');
 
+      // 有休入力の取得
+      const paidLeaveInput = entry.slots[0].closest('.entry').querySelector('.paid-leave');
+      const paid_leave_minutes = parseInt(paidLeaveInput?.value || 0, 10);
+
       // 送信データに含める
       return {
         title: inputs[0].value,
@@ -392,7 +407,8 @@
         start_hour,
         start_minute,
         end_hour,
-        end_minute
+        end_minute,
+        paid_leave_minutes
       };
     });
 

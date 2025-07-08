@@ -19,3 +19,4 @@ class DailyReport(db.Model):
     overtime_after = db.Column(db.Integer)     # 後残業（分）
     total_minutes = db.Column(db.Integer)      # 合計時間（分）
     date = db.Column(db.String(10))            # 日付（例: "2025-06-16"）
+    paid_leave_minutes = db.Column(db.Integer, default=0)   # 有休（分）
