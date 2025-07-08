@@ -43,7 +43,13 @@
   <h1>📅 会社カレンダー</h1>
   <!-- ボタン -->
   <div style="text-align: center; margin-top: 20px;">
+    <!-- 年選択ドロップダウン -->
+    <select id="list-year-select" onchange="showList()" style="display:none"></select>
+
+    <!--カレンダー表示ボタン  -->
     <button onclick="showCalendar()">📅 カレンダー表示</button>
+
+    <!-- 一覧表示ボタン -->
     <button onclick="showList()">📋 一覧表示</button>
   </div>
 </tr>
@@ -131,20 +137,43 @@
       console.log('FullCalendar initialized!');
     });
 
+    // ページ読み込み時に年の選択肢をセットする
+    window.addEventListener('DOMContentLoaded', () =>{
+      const yearSelect = document.getElementById('list-year-select');
+      const currentYear = new Date().getFullYear();
+      for (let y = currentYear - 5; y <= currentYear + 5; y++) {
+        const option = document.createElement('option');
+        option.value = y;
+        option.textContent = y;
+        if (y === currentYear) option.selected = true;
+      yearSelect.appendChild(option);
+    }
+     // 初期表示
+    showCalendar();
+    });
+    
+  
     // カレンダー表示に戻す
     function showCalendar() {
       document.getElementById('list-view').style.display = 'none';
       document.getElementById('calendar').style.display = 'block';
+      document.getElementById('list-year-select').style.display = 'none';
     }
 
     // 一覧表示
     function showList() {
       document.getElementById('calendar').style.display = 'none';
       document.getElementById('list-view').style.display = 'block';
+      document.getElementById('list-year-select').style.display = 'inline-block';
 
-      axios.get('/api/calendar').then(response => {
+      const year = document.getElementById('list-year-select').value;
+      
+      axios.get(`/api/calendar?year=${year}`).then(response => {
         const tbody = document.querySelector('#holiday-table tbody');
         tbody.innerHTML = '';
+
+        // 日付順にソート
+        response.data.sort((a, b) => new Date(a.start) - new Date(b.start));
 
         response.data.forEach(event => {
           const date =new Date(event.start);
@@ -152,21 +181,26 @@
 
           // 色で種別を判定
           let type = '';
+          let typeColor = '';
           if (event.color === '#f00') {
             type = 'holiday';
+            typeColor = '#f00';
           }else if (event.color === '#0a0') {
             type = 'workday';
+            typeColor = '#0a0';
           }else if (event.color === '#ff9999') {
             type = '祝日';
+            typeColor = '#ff9999';
           }
 
           const row = document.createElement('tr');
           row.innerHTML = `
             <td>${event.start}</td>
             <td>${weekday}</td>
-            <td>${type}</td>
-            <td>${event.title}</td>
+            <td style="color:${typeColor}; font-weight:bold;">${type}</td>
+            <td style="color:${typeColor}; font-weight:bold;">${event.title}</td>
             `;
+
           tbody.appendChild(row);
         });
       });

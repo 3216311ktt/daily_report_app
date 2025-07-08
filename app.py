@@ -34,10 +34,20 @@ def calendar():
 def api_calendar():
     events = []
 
-    # 会社独自カレンダー
-    current_year = datetime.now().year
-    years = range(current_year - 1, current_year + 2)
+    # クエリで年を受け取る
+    selected_year = request.args.get('year', type=int)
 
+
+    if selected_year:
+         # 📋 一覧表示 → 単年
+        years = [selected_year]
+    else:
+         # 📅 カレンダー表示 → 今年を中心に前後1年
+         current_year = datetime.now().year
+         years = range(current_year - 1, current_year + 2)
+    
+        
+    # 会社独自カレンダー
     for row in holiday_checker.company_calendar:
         # 年なしは仮に今年を付けておく
         date_str = row['date']
@@ -66,8 +76,7 @@ def api_calendar():
             })
 
     # jpholidayの祝日
-    now_year = datetime.now().year
-    for year in range(now_year - 1, now_year +2):
+    for year in years:
 
         for date_obj, name in jpholiday.year_holidays(year):
             date_str = date_obj.strftime('%Y-%m-%d')
