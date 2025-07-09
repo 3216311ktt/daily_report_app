@@ -74,6 +74,12 @@
         </div>
         {% set _ = shown_dates.append(date_name_key) %}
       {% endif %}
+      {% if report.paid_leave_minutes %}
+        <div><span class="label">有給休暇:</span>
+        {{ report.paid_leave_minutes // 60 }} 時間
+        {{ report.paid_leave_minutes % 60 }}
+        </div>
+      {% endif %}
 
       <div style="display: flex; align-items: center;">
         <!-- 左：前残業表示 -->
@@ -148,6 +154,11 @@
       📆 月の作業時間累計 ({{ name }}さん):
                           {{ monthly_total // 60 }} 時間
                           {{ monthly_total % 60 }} 分
+    </div>
+    <div style="font-weight: bold; font-size: 16px; margin-top: 10px;">
+      ✅ 有給休暇合計:
+                          {{ monthly_paid_leave // 60 }} 時間
+                          {{ monthly_paid_leave % 60 }} 分
     </div>
   {% endif %}
 

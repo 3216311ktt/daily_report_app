@@ -100,9 +100,10 @@
     paidLeaveInput.step= '0.5';
     paidLeaveInput.placeholder = '有給(時間)';
     paidLeaveInput.className = 'paid_leave';
-    paidLeaveInput.min = 0;
+    // paidLeaveInput.min = 0;
     paidLeaveInput.style.marginTop = '4px';
     paidLeaveInput.style.width ='120px'
+    paidLeaveInput.value = '8';
 
     fieldRow.appendChild(titleInput);
     fieldRow.appendChild(taskInput);
@@ -208,7 +209,7 @@
 
     entriesEl.appendChild(wrapper);
 
-    allEntries.push({ slots, output, overtimeBefore, overtimeAfter });
+    allEntries.push({ slots, output, overtimeBefore, overtimeAfter, paidLeaveInput });
   }
 
   setupSlotEventHandlers();
@@ -374,6 +375,10 @@
       const overtimeBefore = parseInt(entry.overtimeBefore.value, 10);
       const overtimeAfter = parseInt(entry.overtimeAfter.value, 10);
       const total = workMinutes + overtimeBefore + overtimeAfter;
+      // 有休入力の取得
+      const paidLeaveInput = entry.paidLeaveInput;
+      const paid_leave_hours = parseFloat(paidLeaveInput.value) || 0;
+      const paid_leave_minutes = Math.round(paid_leave_hours * 60);
 
         // start / end の時間をここで取得
       let start_time = null;
@@ -391,9 +396,6 @@
       const fieldRow = entry.slots[0].closest('.entry').querySelector('.entry-fields');
       const inputs = fieldRow.querySelectorAll('input');
 
-      // 有休入力の取得
-      const paidLeaveInput = entry.slots[0].closest('.entry').querySelector('.paid-leave');
-      const paid_leave_minutes = parseInt(paidLeaveInput?.value || 0, 10);
 
       // 送信データに含める
       return {

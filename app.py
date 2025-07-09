@@ -247,6 +247,9 @@ def report_chart():
     # 社員名一覧
     all_names = db.session.query(DailyReport.name).distinct().order_by(DailyReport.name).all()
     name_list = [n[0] for n in all_names]
+
+    # 有給休暇の合計
+    monthly_paid_leave = sum(r.paid_leave_minutes or 0 for r in reports)
     
     return render_template('report_chart.html',
                            reports=reports,
@@ -255,7 +258,8 @@ def report_chart():
                            daily_totals=daily_totals,
                            monthly_total=monthly_total,
                            name_list=name_list,
-                           holiday_info=holiday_info
+                           holiday_info=holiday_info,
+                           monthly_paid_leave=monthly_paid_leave,
                            )
     
 
