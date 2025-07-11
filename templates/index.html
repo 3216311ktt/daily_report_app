@@ -8,7 +8,13 @@
 </head>
 <body>
 
+
 <h2>📝 日報入力</h2>
+  <label style="color: rgb(251, 38, 0);">
+    <input type="checkbox" id="isHolidayWork" {% if is_holiday %}checked{% endif %}>
+     休日出勤
+  </label>
+  <br>
 <tr>
   <label>名前</label>
   <select id="nameSelect" onchange="toggleNameInpit()">
@@ -20,7 +26,7 @@
   </select>
   <input type="text" id="customName" placeholder="名前入力" style="display: none;">
   <label for="dateInput"> 日付を選択</label>
-  <input type="date" id="dateInput" name="date">
+  <input type="date" id="dateInput" name="date" onchange="checkIfHoliday()">
   <label for="entryCountSelector">件名数</label>
   <select id="entryCountSelector">
     <option value="1" selected>1　件</option>
@@ -51,6 +57,25 @@
   const entryCountSelector = document.getElementById('entryCountSelector');
   
   let allEntries = [];
+
+  // 休日判定のための関数
+  function checkIfHoliday() {
+  const date = document.getElementById('dateInput').value;
+  if (!date) return;
+
+  fetch(`/api/check_holiday?date=${date}`)
+    .then(response => response.json())
+    .then(data => {
+      const isHoliday = data.is_holiday;
+      document.getElementById('isHolidayWork').checked = isHoliday;
+      console.log(`この日は休日？: ${isHoliday}`);
+    })
+    .catch(err => console.error(err));
+}
+  // 初期化
+  document.addEventListener('DOMContentLoaded', () => {
+    checkIfHoliday();
+  });
 
   function createTimeSlots() {
     const slots = [];
@@ -100,10 +125,10 @@
     paidLeaveInput.step= '0.5';
     paidLeaveInput.placeholder = '有給(時間)';
     paidLeaveInput.className = 'paid_leave';
-    // paidLeaveInput.min = 0;
+    paidLeaveInput.min = 0;
     paidLeaveInput.style.marginTop = '4px';
     paidLeaveInput.style.width ='120px'
-    paidLeaveInput.value = '8';
+    
 
     fieldRow.appendChild(titleInput);
     fieldRow.appendChild(taskInput);
@@ -368,6 +393,9 @@
         return;
       }
     }
+
+    // 休日出勤のチェックボックスの状態を取得
+    const isHolidayWork = document.getElementById("isHolidayWork").checked
   
     const reports = allEntries.map(entry => {
       const selectedSlots = entry.slots.filter(s => s.classList.contains('selected'));
@@ -410,7 +438,7 @@
         start_minute,
         end_hour,
         end_minute,
-        paid_leave_minutes
+        paid_leave_minutes,
       };
     });
 
@@ -418,7 +446,7 @@
     fetch('/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, reports })
+      body: JSON.stringify({ name, is_holiday_work: isHolidayWork, reports })
     }).then(res => res.json()).then(data => {
       if (data.status === 'success') alert('保存しました！');
       else alert('保存に失敗しました');

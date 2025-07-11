@@ -75,9 +75,9 @@
         {% set _ = shown_dates.append(date_name_key) %}
       {% endif %}
       {% if report.paid_leave_minutes %}
-        <div><span class="label">有給休暇:</span>
+        <div><span style="color: rgb(245, 28, 224);" class="label">有給休暇:</span>
         {{ report.paid_leave_minutes // 60 }} 時間
-        {{ report.paid_leave_minutes % 60 }}
+        {{ report.paid_leave_minutes % 60 }} 分
         </div>
       {% endif %}
 

@@ -20,3 +20,14 @@ class DailyReport(db.Model):
     total_minutes = db.Column(db.Integer)      # 合計時間（分）
     date = db.Column(db.String(10))            # 日付（例: "2025-06-16"）
     paid_leave_minutes = db.Column(db.Integer, default=0)   # 有休（分）
+
+    # 休日出勤かどうか
+    is_holiday_work = db.Column(db.Boolean, default=False)
+    # 休日出勤時間帯
+    holiday_start_hour = db.Column(db.Integer)
+    holiday_start_minute = db.Column(db.Integer)
+    holiday_end_hour = db.Column(db.Integer)
+    holiday_end_minute = db.Column(db.Integer)
+    # 休日出勤の選択時間や合計
+    holiday_work_minutes = db.Column(db.Integer)
+    holiday_total_minutes = db.Column(db.Integer)

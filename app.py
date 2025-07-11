@@ -121,42 +121,79 @@ def api_update():
     holiday_checker.save_calendar()
     return jsonify({'status': 'success'})
 
+# 休日自動判定
+@app.route('/api/check_holiday')
+def api_check_holiday():
+    date_str = request.args.get('date')
+    if not date_str:
+        return jsonify({'error': 'date is required'}), 400
+
+    is_holiday = holiday_checker.is_holiday(date_str)
+    return jsonify({'date': date_str, 'is_holiday': is_holiday})
+
 
 @app.route('/')
 def index():
     # データベースから名前の一覧を取得
     name_list = db.session.query(DailyReport.name).distinct().order_by(DailyReport.name).all()
     name_list = [n[0] for n in name_list]
-    return render_template('index.html', name_list=name_list)
+
+    # 今日の日付（初期値）
+    today = datetime.now().strftime('%Y-%m-%d')
+
+    # 会社カレンダー＋祝日＋土曜で判定
+    is_holiday = holiday_checker.is_holiday(today)
+
+    return render_template('index.html',
+                           name_list=name_list,
+                           today=today,
+                           is_holiday=is_holiday)
 
 @app.route('/submit', methods=['POST'])
 def submit():
     reports = request.json.get('reports', [])
     name = request.json.get('name', '未入力')
     date = datetime.now().strftime('%Y-%m-%d')
+    is_holiday_work = request.json.get('is_holiday_work', False)
 
     print('POSTされたデータ:', reports)
-    print('名前:', name, '日付:', date)
+    print('名前:', name, '日付:', date, '休日出勤:', is_holiday_work
+          )
 
     for entry in reports:
-        print('レポート1件:', entry)
-        report = DailyReport(
-            name=name,
-            title=entry.get('title'),
-            task= entry.get('task'),
-            partner=entry.get('partner'),
-            start_hour=entry.get('start_hour'),
-            start_minute=entry.get('start_minute'),
-            end_hour=entry.get('end_hour'),
-            end_minute=entry.get('end_minute'),
-            work_minutes=entry.get('work_minutes'),
-            overtime_before=entry.get('overtime_before'),
-            overtime_after=entry.get('overtime_after'),
-            total_minutes=entry.get('total_minutes'),
-            paid_leave_minutes=entry.get('paid_leave_minutes', 0),
-            date=date
-        )
-        db.session.add(report)
+            # 共通部分
+            base_data = dict(
+                name=name,
+                title=entry.get('title'),
+                task= entry.get('task'),
+                partner=entry.get('partner'),
+                is_holiday_work=is_holiday_work,
+                overtime_before=entry.get('overtime_before'),
+                overtime_after=entry.get('overtime_after'),
+                total_minutes=entry.get('total_minutes'),
+                paid_leave_minutes=entry.get('paid_leave_minutes', 8),
+                date=date
+            )
+
+            if is_holiday_work:
+                base_data.update(
+                    holiday_start_hour=entry.get('start_hour'),
+                    holiday_start_minute=entry.get('start_minute'),
+                    holiday_end_hour=entry.get('end_hour'),
+                    holiday_end_minute=entry.get('end_minute'),
+                    holiday_work_minutes=entry.get('work_minutes'),
+                )
+            else:
+                base_data.update(
+                    start_hour=entry.get('start_hour'),
+                    start_minute=entry.get('start_minute'),
+                    end_hour=entry.get('end_hour'),
+                    end_minute=entry.get('end_minute'),
+                    work_minutes=entry.get('work_minutes'),
+            )
+            
+            report = DailyReport(**base_data)   
+            db.session.add(report)
 
     db.session.commit()
     return {'status': 'success'}
@@ -189,9 +226,17 @@ def edit_report(id):
         report.task = request.form['task']
         report.partner = request.form['partner']
         report.overtime_before = int(float(request.form['overtime_before']) * 60)
-        report.work_minutes = int(float(request.form['work_minutes']) * 60)
         report.overtime_after = int(float(request.form['overtime_after']) *60)
-        report.total_minutes = report.overtime_before + report.work_minutes + report.overtime_after
+
+        if report.is_holiday_work:
+            # 休日出勤の場合
+            report.holiday_work_minutes = int(float(request.form['work_minutes']) * 60)
+            report.holiday_total_minutes = report.overtime_before + report.holiday_work_minutes + report.overtime_after
+        else:
+            # 通常勤務の場合
+            report.work_minutes = int(float(request.form['work_minutes']) * 60)
+            report.total_minutes = report.overtime_before + report.work_minutes + report.overtime_after
+
         db.session.commit()
         return redirect(request.referrer or url_for('view_reports'))
     
@@ -226,14 +271,16 @@ def report_chart():
     holiday_info = {}
 
     for report in reports:
-        key = f"{report.date}_{report.name}"
-        daily_totals[key] += report.total_minutes or 0
-        monthly_total += report.total_minutes or 0
-
-        if holiday_checker.is_holiday(report.date):
-            holiday_info[key] = True
+        if report.is_holiday_work:
+            work_time = report.holiday_total_minutes or 0
         else:
-            holiday_info[key] = False
+            work_time = report.total_minutes or 0
+
+        key = f"{report.date}_{report.name}"
+        daily_totals[key] += work_time
+        monthly_total += work_time
+
+        holiday_info[key] = report.is_holiday_work or holiday_checker.is_holiday(report.date)
     
     # 月の合計を求める
     total_minutes = None
