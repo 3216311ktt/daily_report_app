@@ -26,6 +26,7 @@
 </head>
 <body>
     <h2>📋 日報一覧</h2>
+    <a href="/">←　入力画面</a>
     <form method="get" style="margin-bottom: 20px;">
         名前: <input type="text" name="name" value="{{ request.args.get('name', '') }}">
         日付: <input type="date" name="date" value="{{ request.args.get('date', '') }}">

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 from operator import attrgetter
 from sqlalchemy import func
-from datetime import datetime
+from datetime import datetime, date as dt_date
 from holiday_manager import HolidayManager
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -264,6 +264,8 @@ def delete_report(id):
 def report_chart():
     name = request.args.get('name', '')
     date = request.args.get('date', '')
+    today = dt_date.today().isoformat()
+    
     
     query =DailyReport.query
 
@@ -310,7 +312,7 @@ def report_chart():
     return render_template('report_chart.html',
                            reports=reports,
                            name=name,
-                           date=date,
+                           date=today,
                            daily_totals=daily_totals,
                            monthly_total=monthly_total,
                            name_list=name_list,
