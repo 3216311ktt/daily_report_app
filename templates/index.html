@@ -45,6 +45,8 @@
 
 <button onclick="submitReports()" class="submit">送信</button>
 <a href="/chart">←　表示画面</a>
+<br>
+<a href="/view_reports">←　編集画面</a>
 
 <script>
   const startHour = 8;
@@ -128,8 +130,14 @@
     paidLeaveInput.min = 0;
     paidLeaveInput.style.marginTop = '4px';
     paidLeaveInput.style.width ='120px'
-    
 
+    // 初期値８時間
+    paidLeaveInput.addEventListener('focus', function(){
+      if (this.value === '') {
+        this.value = 8;
+      }
+    })
+    
     fieldRow.appendChild(titleInput);
     fieldRow.appendChild(taskInput);
     fieldRow.appendChild(partnerInput);

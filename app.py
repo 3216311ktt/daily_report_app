@@ -212,6 +212,15 @@ def view_reports():
         query = query.filter(DailyReport.date == date)
 
     reports = query.order_by(DailyReport.date.desc(), DailyReport.name).all()
+
+    # Noneの値を0に変換
+    for r in reports:
+        if r.work_minutes is None:
+            r.work_minutes = 0
+        if r.total_minutes is None:
+            r.total_minutes = 0
+        if r.paid_leave_minutes is None:
+            r.paid_leave_minutes = 0
     return render_template('view_reports.html', reports=reports)
     
 # 編集ルート
