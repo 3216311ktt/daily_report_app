@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>月報レポート</title>
+  <style>
+    body {
+      font-family: 'Yu Gothic', sans-serif;
+      margin: 40px;
+    }
+    h1 {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 12px;
+    }
+    th, td {
+      border: 1px solid #333;
+      padding: 4px 6px;
+      text-align: left;
+    }
+    th {
+      background: #eee;
+    }
+    .section-title {
+      margin-top: 20px;
+      font-size: 16px;
+      font-weight: bold;
+    }
+    .right {
+      text-align: right;
+    }
+    @media print {
+      body {
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>{{ month }}月報レポート</h1>
+  <p>氏名：{{ name }}</p>
+
+  <table>
+    <tr>
+      <th>基本時間</th>
+      <td>{{ basic_time }}</td>
+      <th>残業 A</th>
+      <td>{{ overtime_a }}</td>
+      <th>残業 B</th>
+      <td>{{ overtime_b }}</td>
+      <th>休出</th>
+      <td>{{ holiday_work }}</td>
+      <th>合計</th>
+      <td>{{ total_hours }}</td>
+    </tr>
+    <tr>
+      <th>有給・欠勤</th>
+      <td>{{ paid_leave }}</td>
+      <th>時差</th>
+      <td>{{ time_diff }}</td>
+      <th>生産目標</th>
+      <td>{{ target_amount | comma }}</td>
+      <th>生産実績</th>
+      <td>{{ actual_amount | comma }}</td>
+      <th>達成率</th>
+      <td>{{ performance_rate }}%</td>
+    </tr>
+  </table>
+
+  <div class="section-title">【主要案件】</div>
+  <table>
+    <thead>
+      <tr>
+        <th>業務件名</th>
+        <th>就労実績・同行者</th>
+        <th style="width: 8%;">稼働時間(H)</th>
+        <th style="width: 10%;">売上金額(円)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for task in main_tasks %}
+      <tr>
+        <td>{{ task.project_name }}</td>
+        <td>{{ task.description }}</td>
+        <td class="right">{{ task.hours }}</td>
+        <td class="right">{{ task.amount | comma }}</td>
+      </tr>
+      {% endfor %}
+
+      {% for i in range(10 - main_tasks|length) %}
+      <tr>
+        <td>&nbsp;</td><td></td><td></td><td></td>
+      </tr>
+      {% endfor %}
+
+      <tr>
+        <th colspan="2">主要案件 合計</th>
+        <th class="right">{{ main_total_hours }}</th>
+        <th class="right">{{ main_total_amount | comma }}</th>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="section-title">【その他】</div>
+  <table>
+    <thead>
+      <tr>
+        <th>分類</th>
+        <th>内容</th>
+        <th style="width: 8%;">稼働時間(H)</th>
+        <th style="width: 10%;">売上金額(円)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for other in other_tasks %}
+      <tr>
+        <td>{{ other.category }}</td>
+        <td>{{ other.description }}</td>
+        <td class="right">{{ other.hours }}</td>
+        <td class="right">{{ other.amount | comma }}</td>
+      </tr>
+      {% endfor %}
+
+      <tr>
+        <th colspan="2">先月までの売上</th>
+        <td></td>
+        <td class="right">{{ previous_amount | comma }}</td>
+      </tr>
+      <tr>
+        <th colspan="2">その他 合計</th>
+        <th class="right">{{ other_total_hours }}</th>
+        <th class="right">{{ other_total_amount | comma }}</th>
+      </tr>
+
+      <tr>
+        <td colspan="4" style="border: none;">&nbsp;</td> <!-- 線なしの隙間 -->
+      </tr>
+      <tr>
+        <th colspan="2">総合計</th>
+        <th class="right">{{ total_hours }}</th>
+        <th class="right">{{ actual_amount | comma }}</th>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>
+
+
+
+
+
+
+

@@ -39,6 +39,13 @@ db.init_app(app)
 
 migrate = Migrate(app, db)
 
+@app.template_filter('comma')
+def comma_filter(value):
+    try:
+        return "{:,}".format(int(value))
+    except (ValueError, TypeError):
+        return value
+
 # 土曜出勤、祝日、会社休日の情報を取得
 @app.route('/calendar')
 def calendar():
@@ -383,6 +390,53 @@ def check_approval():
     else:
         return jsonify({'success': False, 'message': 'レポートが見つかりません'})
     
+# 月報用ルート
+@app.route('/monthly_report')
+def monthly_report():
+    # name = request.args.get('name')
+    # # month = request.args.get('month')
+    # reports = DailyReport.query.filter(
+    #     DailyReport.name == name,
+    #     # DailyReport.date.startswith(month)
+    # ).all()
+
+    # # 集計ロジック
+    # grouped = ...
+
+    # return render_template('monthly_report.html',
+    #                        name=name,
+    #                     #    month=month,
+    #                        reports=reports,
+    #                        grouped=grouped)
+    performance_rate = round((258850 / 1091200) * 100, 2)
+    context = {
+        "name": "田中 郁二",
+        "month": "2025-07",
+        "basic_time": "22 日",
+        "overtime_a": "2.5 H",
+        "overtime_b": "0 H",
+        "holiday_work": "8.5 H",
+        "total_hours": 179,  # 総合計時間
+        "paid_leave": "0 日",
+        "time_diff": "-8 H",
+        "late_early": "0 H",
+        "target_amount": 1091200,
+        "actual_amount": 258850,  # 総合計金額
+        "performance_rate": performance_rate,
+        "main_tasks": [
+            {"project_name": "東山中高", "description": "弱電迂回工事 / 水野", "hours": 23, "amount": 0},
+        ],
+        "main_total_hours": 72,
+        "main_total_amount": 0,
+        "other_tasks": [
+            {"category": "社内", "description": "プログラミング学習 他", "hours": 56, "amount": 0},
+            {"category": "電設", "description": "枚方長尾谷NKビル 他", "hours": 17, "amount": 18600},
+        ],
+        "other_total_hours": 73,
+        "other_total_amount": 104850,
+        "previous_amount": 155000,
+    }
+    return render_template("monthly_report.html", **context)
 
 if __name__ == '__main__':
     with app.app_context():
