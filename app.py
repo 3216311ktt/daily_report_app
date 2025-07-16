@@ -1,6 +1,6 @@
 import os
 import jpholiday
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 from models import db, DailyReport
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -24,6 +24,8 @@ DB_PATH = os.path.join(BASE_DIR, 'db', 'daily_report.db')
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] =False
+app.secret_key ='super_secret_key'
+app.permanent_session_lifetime = timedelta(minutes=5) # セッションの有効期限を10分に設定
 db.init_app(app)
 
 migrate = Migrate(app, db)
@@ -317,6 +319,58 @@ def report_chart():
                            holiday_info=holiday_info,
                            monthly_paid_leave=monthly_paid_leave,
                            )
+
+# 役職ログインAPI
+@app.route('/login_role', methods=['POST'])
+def login_role():
+    data = request.get_json()
+    role = data['role']
+    password = data['password']
+
+    ROLE_PASSWORDS = {
+        'manager': 'managerpass',
+        'director': 'directorpass',
+        'president': 'presidentpass'
+    }
+
+    if ROLE_PASSWORDS.get(role) == password:
+        session.permanent = True
+        session[f'{role}_logged_in'] = True
+        return jsonify({'success': True})
+    else:
+        return jsonify({'success': False})
+    
+# ログイン状態確認ＡＰＩ
+@app.route('/check_login', methods=['POST'])
+def check_login():
+    data = request.get_json()
+    print('受け取ったデータ:', data)
+
+    if not data:
+        return jsonify({'error': 'No JSON received'}), 400
+    
+    role = data['role']
+    is_logged_in = session.get(f'{role}_logged_in', False)
+    return jsonify({'logged_in': is_logged_in})
+
+# チェック状態保存ＡＰＩ
+@app.route('/check_approval', methods=['POST'])
+def check_approval():
+    data = request.get_json()
+    report_id = data['report_id']
+    role = data['role']
+    checked = data['checked']
+
+    if not session.get(f'{role}_logged_in'):
+        return jsonify({'seccess': False, 'message': 'ログインしてください'})
+    
+    report = DailyReport.query.get(report_id)
+    if report:
+        setattr(report, f'{role}_checked', checked)
+        db.session.commit()
+        return jsonify({'success': True})
+    else:
+        return jsonify({'success': False, 'message': 'レポートが見つかりません'})
     
 
 if __name__ == '__main__':

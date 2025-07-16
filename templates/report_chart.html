@@ -37,7 +37,34 @@
       {% endif %}
       <section class="daily-group">
         <h3>📅 {{ report.date }}｜👤 {{ report.name }}</h3>
+        <div class="approval-checks">
+      <label>
+        <input type="checkbox"
+               class="approval-checkbox"
+               data-role="manager"
+               data-report-id="{{ report.id }}"
+               {% if report.manager_checked %}checked{% endif %}>
+        課長確認
+      </label>
+      <label>
+        <input type="checkbox"
+               class="approval-checkbox"
+               data-role="director"
+               data-report-id="{{ report.id }}"
+               {% if report.manager_checked %}checked{% endif %}>
+        部長確認
+      </label>
+      <label>
+        <input type="checkbox"
+               class="approval-checkbox"
+               data-role="president"
+               data-report-id="{{ report.id }}"
+               {% if report.manager_checked %}checked{% endif %}>
+        社長確認
+      </label>
+    </div>
         {% set ns.current_key = this_key %}
+      
     {% endif %}
 
     <div class="report-card">
@@ -167,6 +194,53 @@
 {% endif %}
 
 <a href="/">←　入力画面</a>
+
+<script>
+  document.querySelectorAll('.approval-checkbox').forEach(box => {
+    box.addEventListener('change', async function() {
+      console.log('チェックされた！');
+
+      const role = this.dataset.role;
+      const reportId = this.dataset.reportId;
+
+      // 役職ごとにログイン済みか確認する
+      let res = await fetch('/check_login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ role: role })
+      });
+      let data = await res.json();
+
+      if (!data.logged_in) {
+        const password = prompt(`${role}のパスワードを入力してください:`);
+        res = await fetch('/login_role', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ role: role, password: password })
+        });
+        data = await res.json();
+        if (!data.success) {
+          alert('パスワードが間違っています');
+          this.checked = !this.checked; // チェックを元に戻す
+          return;
+        } 
+      }
+
+      // ログイン済みならチェック状態を保保存
+      await fetch('/check_approval', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ role: role, report_id: reportId, checked: this.checked })
+      });
+    });
+  });
+</script>
 </body>
 </html>
 
