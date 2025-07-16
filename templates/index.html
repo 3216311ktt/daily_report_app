@@ -147,17 +147,68 @@
     const timelineRow = document.createElement('div');
     timelineRow.className = 'timeline-row';
 
+    // === 前残業 ===
     const beforeWrapper = document.createElement('div');
-    const beforeLabel = document.createElement('span');
-    beforeLabel.textContent = '前残業: ';
+    const beforeCheckbox = document.createElement('input');
+    beforeCheckbox.type = 'checkbox';
+    beforeCheckbox.id = 'before-check';
+    const beforeLabel = document.createElement('label');
+    beforeLabel.htmlFor = 'before-check';
+    beforeLabel.textContent = '前残業あり';
+
+    const timeOptionsBefore = [
+      "04:00", "04:30", "05:00", "05:30", "06:00", "06:30", "07:00", "07:30"
+    ];
+
     const overtimeBefore = document.createElement('select');
     overtimeBefore.className = 'overtime-select';
+    overtimeBefore.style.display = 'none';  // 初期は非表示
+    timeOptionsBefore.forEach(timeStr => {
+    const opt = document.createElement('option');
+    opt.value = timeStr;
+    opt.textContent = timeStr;
+    overtimeBefore.appendChild(opt);
+    });
 
+    beforeCheckbox.addEventListener('change', () => {
+    overtimeBefore.style.display = beforeCheckbox.checked ? 'inline-block' : 'none';
+    });
+
+    beforeWrapper.appendChild(beforeCheckbox);
+    beforeWrapper.appendChild(beforeLabel);
+    beforeWrapper.appendChild(overtimeBefore);
+
+    // === 後残業 ===
     const afterWrapper = document.createElement('div');
-    const afterLabel = document.createElement('span');
-    afterLabel.textContent = '後残業: ';
+    const afterCheckbox = document.createElement('input');
+    afterCheckbox.type = 'checkbox';
+    afterCheckbox.id = 'after-check';
+    const afterLabel = document.createElement('label');
+    afterLabel.htmlFor = 'after-check';
+    afterLabel.textContent = '後残業あり';
+    
+    const timeOptionsAfter = [
+      "19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00", "22:30", "23:00", "23:30",
+      "00:00", "00:30", "01:00", "01:30", "02:00", "02:30", "03:00", "03:30",
+    ];
+
     const overtimeAfter = document.createElement('select');
     overtimeAfter.className = 'overtime-select';
+    overtimeAfter.style.display = 'none';
+    timeOptionsAfter.forEach(timeStr => {
+    const opt = document.createElement('option');
+    opt.value = timeStr;
+    opt.textContent = timeStr;
+    overtimeAfter.appendChild(opt);
+    });
+
+    afterCheckbox.addEventListener('change', () => {
+    overtimeAfter.style.display = afterCheckbox.checked ? 'inline-block' : 'none';
+    });
+
+    afterWrapper.appendChild(afterCheckbox);
+    afterWrapper.appendChild(afterLabel);
+    afterWrapper.appendChild(overtimeAfter);
 
           // === 🧹 クリアボタンの追加 ===
     const clearBtn = document.createElement('button');
@@ -177,16 +228,6 @@
       updateAllTotals();
 
   });
-  
-
-    for (let j = 0; j <= 12; j++) {
-      const min = j * 30;
-      const opt = document.createElement('option');
-      opt.value = min;
-      opt.textContent = min === 0 ? '0時間' : `${min / 60}時間`;
-      overtimeBefore.appendChild(opt.cloneNode(true));
-      overtimeAfter.appendChild(opt);
-    }
 
     beforeWrapper.appendChild(beforeLabel);
     beforeWrapper.appendChild(overtimeBefore);
