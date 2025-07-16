@@ -31,3 +31,8 @@ class DailyReport(db.Model):
     # 休日出勤の選択時間や合計
     holiday_work_minutes = db.Column(db.Integer)
     holiday_total_minutes = db.Column(db.Integer)
+    
+    # 役職者確認フラグ
+    manager_checked = db.Column(db.Boolean, default=False)
+    director_checked = db.Column(db.Boolean, default=False)
+    president_checked = db.Column(db.Boolean, default=False)
