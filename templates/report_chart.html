@@ -9,6 +9,7 @@
 <body>
 
 <h2>📊 日報表示</h2>
+<a href="/">←　入力画面</a>
 
 <form method="get" action="/chart">
   <label>名前:
@@ -193,8 +194,6 @@
   <p>該当するレポートが見つかりません。</p>
 {% endif %}
 
-<a href="/">←　入力画面</a>
-
 <script>
   document.querySelectorAll('.approval-checkbox').forEach(box => {
     box.addEventListener('change', async function() {
@@ -230,7 +229,7 @@
         } 
       }
 
-      // ログイン済みならチェック状態を保保存
+      // ログイン済みならチェック状態を保存
       await fetch('/check_approval', {
         method: 'POST',
         headers: {

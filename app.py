@@ -13,13 +13,22 @@ from flask_migrate import Migrate
 
 holiday_checker = HolidayManager('static/company_calendar.csv')
 
-# なければ作成
-if not os.path.exists('db'):
-    os.makedirs('db')
-
 # 安定するpath
+# このファイルがあるディレクトリ（app.py）
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-DB_PATH = os.path.join(BASE_DIR, 'db', 'daily_report.db')
+
+# 親ディレクトリの絶対パス
+PARENT_DIR = os.path.abspath(os.path.join(BASE_DIR, '..'))
+
+# 上の階層の db ディレクトリを使う
+DB_DIR = os.path.join(PARENT_DIR, 'db')
+
+# ディレクトリがなければ作る
+if not os.path.exists(DB_DIR):
+    os.makedirs(DB_DIR)
+
+# 共通DBファイルのパス
+DB_PATH = os.path.join(DB_DIR, 'unified.db')
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
