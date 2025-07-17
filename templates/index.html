@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" name="viewport">
+  <meta charset="UTF-8">
+  <meta name="viewport">
   <link rel="stylesheet" href="static/index_style.css">
   <title>日報入力</title>
 
@@ -39,6 +40,45 @@
 <br>
 <br>
 <div id="entries"></div>
+
+<!-- モーダル用のCSSを追加 -->
+<style>
+  .time-modal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0; top: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    justify-content: center;
+    align-items: center;
+  }
+
+  .time-modal-content {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    max-height: 60%;
+    overflow-y: auto;
+    width: 200px;
+    text-align: center;
+  }
+
+  .time-option {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+  }
+
+  .time-option:hover {
+    background: #f0f0f0;
+  }
+</style>
+
+<!-- モーダルHTML -->
+<div id="timeModal" class="time-modal">
+  <div class="time-modal-content" id="timeOptionsContainer"></div>
+</div>
+
 
 <div class="total-time">総合計時間: <span id="overall-total">0</span> 時間</div>
 <div class="total-time">残業時間合計: <span id="overtime-total">0</span> 時間</div>
@@ -149,64 +189,33 @@
 
     // === 前残業 ===
     const beforeWrapper = document.createElement('div');
-    const beforeCheckbox = document.createElement('input');
-    beforeCheckbox.type = 'checkbox';
-    beforeCheckbox.id = 'before-check';
+    beforeWrapper.style.marginRight = '10px';
     const beforeLabel = document.createElement('label');
-    beforeLabel.htmlFor = 'before-check';
-    beforeLabel.textContent = '前残業あり';
+    beforeLabel.textContent = '前残業: ';
+    const overtimeBefore = document.createElement('input');
+    overtimeBefore.type = 'text';
+    overtimeBefore.className = 'overtime-timepicker';
+    overtimeBefore.placeholder = '前残業時刻';
+    overtimeBefore.readOnly = true;  // 手入力防止
+    overtimeBefore.style.width = '60px';
+    overtimeBefore.addEventListener('click', () => showTimeModal(overtimeBefore));
 
-    const timeOptionsBefore = [
-      "04:00", "04:30", "05:00", "05:30", "06:00", "06:30", "07:00", "07:30"
-    ];
-
-    const overtimeBefore = document.createElement('select');
-    overtimeBefore.className = 'overtime-select';
-    overtimeBefore.style.display = 'none';  // 初期は非表示
-    timeOptionsBefore.forEach(timeStr => {
-    const opt = document.createElement('option');
-    opt.value = timeStr;
-    opt.textContent = timeStr;
-    overtimeBefore.appendChild(opt);
-    });
-
-    beforeCheckbox.addEventListener('change', () => {
-    overtimeBefore.style.display = beforeCheckbox.checked ? 'inline-block' : 'none';
-    });
-
-    beforeWrapper.appendChild(beforeCheckbox);
     beforeWrapper.appendChild(beforeLabel);
     beforeWrapper.appendChild(overtimeBefore);
 
     // === 後残業 ===
     const afterWrapper = document.createElement('div');
-    const afterCheckbox = document.createElement('input');
-    afterCheckbox.type = 'checkbox';
-    afterCheckbox.id = 'after-check';
+    afterWrapper.style.marginLeft = '10px';
     const afterLabel = document.createElement('label');
-    afterLabel.htmlFor = 'after-check';
-    afterLabel.textContent = '後残業あり';
+    afterLabel.textContent = '後残業: ';
+    const overtimeAfter = document.createElement('input');
+    overtimeAfter.type = 'text';
+    overtimeAfter.className = 'overtime-timepicker';
+    overtimeAfter.placeholder = '後残業時刻';
+    overtimeAfter.readOnly = true;
+    overtimeAfter.style.width = '60px';
+    overtimeAfter.addEventListener('click', () => showTimeModal(overtimeAfter));
     
-    const timeOptionsAfter = [
-      "19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00", "22:30", "23:00", "23:30",
-      "00:00", "00:30", "01:00", "01:30", "02:00", "02:30", "03:00", "03:30",
-    ];
-
-    const overtimeAfter = document.createElement('select');
-    overtimeAfter.className = 'overtime-select';
-    overtimeAfter.style.display = 'none';
-    timeOptionsAfter.forEach(timeStr => {
-    const opt = document.createElement('option');
-    opt.value = timeStr;
-    opt.textContent = timeStr;
-    overtimeAfter.appendChild(opt);
-    });
-
-    afterCheckbox.addEventListener('change', () => {
-    overtimeAfter.style.display = afterCheckbox.checked ? 'inline-block' : 'none';
-    });
-
-    afterWrapper.appendChild(afterCheckbox);
     afterWrapper.appendChild(afterLabel);
     afterWrapper.appendChild(overtimeAfter);
 
@@ -228,12 +237,7 @@
       updateAllTotals();
 
   });
-
-    beforeWrapper.appendChild(beforeLabel);
-    beforeWrapper.appendChild(overtimeBefore);
-    afterWrapper.appendChild(afterLabel);
-    afterWrapper.appendChild(overtimeAfter);
-
+    // タイムライン
     const timelineWrapper = document.createElement('div');
     timelineWrapper.className = 'timeline-wrapper';
 
@@ -258,7 +262,7 @@
     timelineRow.appendChild(afterWrapper);
   
     wrapper.appendChild(timelineRow);
- 
+
     // 出力行とクリアボタンを包む　div を作成
     const bottomRow = document.createElement('div');
     bottomRow.style.display = 'flex';
@@ -413,6 +417,36 @@
     entry.overtimeBefore.addEventListener('change', updateAllTotals);
     entry.overtimeAfter.addEventListener('change', updateAllTotals);
   });
+
+  // モーダル
+  function showTimeModal(targetInput) {
+  const modal = document.getElementById('timeModal');
+  const container = document.getElementById('timeOptionsContainer');
+
+  document.getElementById('timeModal').addEventListener('click', function (e) {
+  if (e.target === this) {
+    this.style.display = 'none';
+  }
+});
+
+  container.innerHTML = '';
+  for (let h = 0; h < 24; h++) {
+    for (let m of [0, 30]) {
+      const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      const div = document.createElement('div');
+      div.className = 'time-option';
+      div.textContent = time;
+      div.addEventListener('click', () => {
+        targetInput.value = h * 60 + m;  // 分で保持（overtime計算用）
+        modal.style.display = 'none';
+        updateAllTotals();
+      });
+      container.appendChild(div);
+    }
+  }
+
+  modal.style.display = 'flex';
+}
 
   function toggleNameInpit() {
     const nameSelect = document.getElementById("nameSelect");
