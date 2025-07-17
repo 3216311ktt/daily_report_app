@@ -72,11 +72,46 @@
   .time-option:hover {
     background: #f0f0f0;
   }
+
+  .cancel-button {
+  margin-top: 10px;
+  padding: 8px 16px;
+  background-color: #ccc;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+#timeModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: none; /* JSで 'flex' に変更 */
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.5);
+  overflow-y: auto;
+  z-index: 9999;
+}
+
+#timeOptionsContainer {
+  background: white;
+  padding: 10px;
+  border-radius: 5px;
+  max-height: 80vh;  /* ← 画面の80%までの高さ */
+  overflow-y: auto;
+}
+
 </style>
 
 <!-- モーダルHTML -->
 <div id="timeModal" class="time-modal">
-  <div class="time-modal-content" id="timeOptionsContainer"></div>
+  <div class="modal-content">
+    <div class="time-modal-content" id="timeOptionsContainer"></div>
+    <botton id="cancelTimeModal" class="cancel-button">キャンセル</botton>
+  </div>
 </div>
 
 
@@ -197,7 +232,7 @@
     overtimeBefore.className = 'overtime-timepicker';
     overtimeBefore.placeholder = '前残業時刻';
     overtimeBefore.readOnly = true;  // 手入力防止
-    overtimeBefore.style.width = '60px';
+    overtimeBefore.style.width = '65px';
     overtimeBefore.addEventListener('click', () => showTimeModal(overtimeBefore));
 
     beforeWrapper.appendChild(beforeLabel);
@@ -213,7 +248,7 @@
     overtimeAfter.className = 'overtime-timepicker';
     overtimeAfter.placeholder = '後残業時刻';
     overtimeAfter.readOnly = true;
-    overtimeAfter.style.width = '60px';
+    overtimeAfter.style.width = '65px';
     overtimeAfter.addEventListener('click', () => showTimeModal(overtimeAfter));
     
     afterWrapper.appendChild(afterLabel);
@@ -230,6 +265,12 @@
     clearBtn.addEventListener('click', () => {
       // クリアボタンの親の特定
       const entryEl = clearBtn.closest('.entry');
+
+      // 残業入力のクリア
+      const beforeInput = entryEl.querySelector('input[placeholder="前残業時刻"]');
+      const afterInput = entryEl.querySelector('input[placeholder="後残業時刻"]');
+      if (beforeInput) beforeInput.value = '';
+      if (afterInput) afterInput.value = '';
 
       // スロット選択解除
       entryEl.querySelectorAll('.slot.selected').forEach(s => s.classList.remove('selected'));
@@ -419,9 +460,46 @@
   });
 
   // モーダル
-  function showTimeModal(targetInput) {
+  function showTimeModal(targetInput, type) {
   const modal = document.getElementById('timeModal');
   const container = document.getElementById('timeOptionsContainer');
+  const cancelBtn = document.getElementById('cancelTimeModal');
+
+  // 除外したい時間帯
+  const excludedTimesMap = {
+    before: [{ start: 8 * 60, end: 18 * 60 }],
+    after: [{ start: 0, end: 18 * 60 }]
+  };
+
+  const excludedTimes = excludedTimesMap[type] || [];
+  
+
+ // 時間ボタンの生成
+ container.innerHTML = '';
+  for (let h = 0; h < 24; h++) {
+    for (let m of [0, 30]) {
+      const totalMinutes = h * 60 + m;
+
+      // 除外時間チェック
+      const isExcluded = excludedTimes.some(range => 
+        totalMinutes >= range.start && totalMinutes < range.end
+      );
+      if (isExcluded) continue;
+
+      const timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      const div = document.createElement('div');
+      div.className = 'time-option';
+      div.textContent = timeStr;
+
+      div.addEventListener('click', () => {
+        targetInput.value = timeStr;  // 入力欄には hh:mm で表示
+        modal.style.display = 'none';
+        updateAllTotals();  // 必要に応じてここも修正する
+      });
+
+      container.appendChild(div);
+    }
+  }
 
   document.getElementById('timeModal').addEventListener('click', function (e) {
   if (e.target === this) {
@@ -429,24 +507,14 @@
   }
 });
 
-  container.innerHTML = '';
-  for (let h = 0; h < 24; h++) {
-    for (let m of [0, 30]) {
-      const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-      const div = document.createElement('div');
-      div.className = 'time-option';
-      div.textContent = time;
-      div.addEventListener('click', () => {
-        targetInput.value = h * 60 + m;  // 分で保持（overtime計算用）
-        modal.style.display = 'none';
-        updateAllTotals();
-      });
-      container.appendChild(div);
-    }
-  }
+// キャンセルボタンで閉じる
+cancelBtn.addEventListener('click', function () {
+  modal.style.display = 'none';
+});
 
   modal.style.display = 'flex';
 }
+
 
   function toggleNameInpit() {
     const nameSelect = document.getElementById("nameSelect");
