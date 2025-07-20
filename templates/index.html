@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport">
+  <meta name="viewport" >
   <link rel="stylesheet" href="static/index_style.css">
   <title>日報入力</title>
 
@@ -43,49 +43,61 @@
 
 <!-- モーダル用のCSSを追加 -->
 <style>
-  .time-modal {
-    position: fixed; /* ← 画面全体にしたいなら fixed */
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: none; /* JSで 'flex' に変更 */
-    align-items: flex-start;
-    background-color: rgba(0, 0, 0, 0.2); /* 背景を暗くする */
-    z-index: 9999;
-  }
 
-  .time-modal-content {
-    position: absolute;  
+  /* 共通モーダル背景 */
+#timeModal {
+  display: none;
+  z-index: 9999;
+}
+
+/* PC用モーダル */
+@media (min-width: 769px) {
+  #timeModal {
+    position: absolute;
     background: white;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    border-radius: 6px;
     padding: 10px;
-    border-radius: 5px;
-    max-height: 80vh;
-    overflow: auto;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    
+    max-height: 300px;
+    overflow-y: auto;
   }
+}
 
-  .time-option {
-    padding: 8px;
-    border-bottom: 1px solid #eee;
-    cursor: pointer;
+/* スマホ用モーダル */
+@media (max-width: 768px) {
+  #timeModal {
+    position: fixed;
+    bottom: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    background: #fff;
+    border: 1px solid #ccc;
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    padding: 1rem;
+    max-height: 50vh;
+    overflow-y: auto;
+    border-radius: 10px;
   }
+}
 
-  .time-option:hover {
-    background: #f0f0f0;
-  }
-
-  .clear-btn {
-    display: block;
-    margin-top: 10px;
-    padding: 8px;
-    background-color: #f0f0f0;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    width: 100%;
-  } 
+.time-option {
+  padding: 0.75rem;
+  font-size: 1.2rem;
+  text-align: center;
+  border-bottom: 1px solid #eee;
+}
+.time-option:hover {
+  background: #f0f0f0;
+}
+.clear-btn {
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  background: #eee;
+  border: none;
+  padding: 0.5rem;
+  cursor: pointer;
+}
 
 </style>
 
@@ -231,7 +243,7 @@
     overtimeAfter.placeholder = '後残業時刻';
     overtimeAfter.readOnly = true;
     overtimeAfter.style.width = '65px';
-    overtimeAfter.addEventListener('click', () => showTimeModal(overtimeAfter));
+    overtimeAfter.addEventListener('click', () => showTimeModal(overtimeAfter, 'after'));
     
     afterWrapper.appendChild(afterLabel);
     afterWrapper.appendChild(overtimeAfter);
@@ -449,56 +461,89 @@
 
   // 除外したい時間帯
   const excludedTimesMap = {
-    before: [{ start: 0 * 60, end: 3 * 60 + 30 },
+    before: [{ start: 0 * 60, end: 4 * 60 },
              { start: 8 * 60, end: 23 * 60 + 31 }
-    ]
+    ],
+    after: [{ start: 4 * 60, end: 19 * 60 }]
   };
 
   const excludedTimes = excludedTimesMap[type] || [];
 
   const rect = targetInput.getBoundingClientRect();
   const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-  const scrollLeft = window.pageXOffset || document.documentElement.scrollTop;
+  const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
 
 
  // 時間ボタンの生成
  container.innerHTML = '';
  container.appendChild(clearButton); // クリアボタンを再度追加
+
+//  表示用の時間リストを生成
+  const timeList = [];
   for (let h = 0; h < 24; h++) {
     for (let m of [0, 30]) {
       const totalMinutes = h * 60 + m;
 
       // 除外時間チェック
-      const isExcluded = excludedTimes.some(range => 
-        totalMinutes >= range.start && totalMinutes < range.end
-      );
-      if (isExcluded) continue;
-
-      const timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-      const div = document.createElement('div');
-      div.className = 'time-option';
-      div.textContent = timeStr;
-
-      div.addEventListener('click', () => {
-        targetInput.value = timeStr;  // 入力欄には hh:mm で表示
-        updateAllTotals();  // 必要に応じてここも修正する
+      const isExcluded = excludedTimes.some(({ start, end }) => {
+        if (start <= end) {
+          return totalMinutes >= start && totalMinutes < end;
+        } else {
+          // 23:30~翌3:00 のような跨ぎを考慮
+          return totalMinutes >= start || totalMinutes < end;
+        }
       });
 
-      container.appendChild(div);
+      if (!isExcluded) {
+        timeList.push({ timeStr: `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`, totalMinutes });
+
+      }
     }
   }
-  modal.style.display = 'flex'; // 背景を表示
-  modal.style.alignItems = 'flex-start';
-  modal.style.justifyContent = 'flex-start';
 
-  container.style.position = 'absolute'
-  container.style.top = (rect.bottom + scrollTop) + 'px'; // 下に5px
-  container.style.left = (rect.left + scrollLeft) + 'px';
+  // 並び替え:「4:00~23:30」→「0:00~3:30」
+  const reorderedTime =[
+    ...timeList.filter(t => t.totalMinutes >= 4 * 60),
+    ...timeList.filter(t => t.totalMinutes < 4 * 60)
+  ];
 
+  // 時間オプションを追加
+  for (const { timeStr } of reorderedTime) {
+    const div = document.createElement('div');
+    div.className = 'time-option';
+    div.textContent = timeStr;
+
+    div.addEventListener('click', () => {
+      targetInput.value = timeStr;  // 入力欄には hh:mm で表示
+      modal.style.display = 'none';
+      updateAllTotals();  // 必要に応じてここも修正する
+    });
+
+    container.appendChild(div);
+
+  }
+   
+  if (window.innerWidth <= 768) {
+    // スマホ（画面下固定スタイル）
+    modal.style.display = 'block';
+    modal.style.buttom = '';
+    modal.style.left = '';
+    modal.style.transform = 'translateX(-50)';
+  } else {
+    // PCのときだけ入力欄の下に表示
+    modal.style.display = 'block';
+    modal.style.position = 'absolute';
+    modal.style.top = (rect.bottom + scrollTop) + 'px';
+    modal.style.left = (rect.left + scrollLeft) + 'px';
+    modal.style.transform = 'none';
+
+  }
+
+  
   // 表示キャンセル
- document.getElementById('timeModal').addEventListener('click', function (e) {
-  if (e.target === this) {
-    this.style.display = 'none';
+ modal.addEventListener('click', function (e) {
+  if (!container.contains(e.target)) {
+    modal.style.display = 'none';
   }
 });
 
