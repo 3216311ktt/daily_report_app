@@ -130,6 +130,13 @@
   
   let allEntries = [];
 
+  // 時間文字列を分に変換
+  function timeStrToMinutes(str) {
+    if (!str) return 0;
+    const [h, m] = str.split(':').map(Number);
+    return (isNaN(h) || isNaN(m)) ? 0 : h * 60 + m;
+  }
+
   // 休日判定のための関数
   function checkIfHoliday() {
   const date = document.getElementById('dateInput').value;
@@ -248,6 +255,7 @@
     
     afterWrapper.appendChild(afterLabel);
     afterWrapper.appendChild(overtimeAfter);
+
 
     // === 🧹 クリアボタンの追加 ===
     const clearBtn = document.createElement('button');
@@ -393,8 +401,8 @@
       const selected = entry.slots.filter(s => s.classList.contains('selected'));
       const minutes = selected.length * 30;
 
-      const overtimeBefore = parseInt(entry.overtimeBefore.value, 10);
-      const overtimeAfter = parseInt(entry.overtimeAfter.value, 10);
+      const overtimeBefore = timeStrToMinutes(entry.overtimeBefore.value);
+      const overtimeAfter = timeStrToMinutes(entry.overtimeAfter.value);
       const overtime = overtimeBefore + overtimeAfter;
 
       totalMinutes += minutes + overtime;
@@ -406,56 +414,6 @@
     overallTotalEl.textContent = (totalMinutes / 60).toFixed(1);
     overtimeTotalEl.textContent = (totalOvertime / 60).toFixed(1);
   }
-
-  allEntries.forEach(entry => {
-    let isDragging = false;
-
-    entry.slots.forEach(slot => {
-      function toggleSlot(target) {
-        if (target.classList.contains('disabled')) return;
-        target.classList.toggle('selected');
-        updateAllTotals();
-      }
-
-      function selectSlot(target) {
-        if (target.classList.contains('disabled') || target.classList.contains('selected')) return;
-        target.classList.add('selected');
-        updateAllTotals();
-      }
-
-      slot.addEventListener('mousedown', () => {
-        isDragging = true;
-        toggleSlot(slot);
-      });
-
-      slot.addEventListener('mousemove', (e) => {
-        if (isDragging && e.buttons) {
-          selectSlot(slot);
-        }
-      });
-
-      slot.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        isDragging = true;
-        toggleSlot(slot);
-      }, { passive: false });
-
-      slot.addEventListener('touchmove', (e) => {
-        e.preventDefault();
-        const touch = e.touches[0];
-        const target = document.elementFromPoint(touch.clientX, touch.clientY);
-        if (target && target.classList.contains('slot')) {
-          selectSlot(target);
-        }
-      }, { passive: false });
-
-      document.addEventListener('mouseup', () => isDragging = false);
-      document.addEventListener('touchend', () => isDragging = false);
-    });
-
-    entry.overtimeBefore.addEventListener('change', updateAllTotals);
-    entry.overtimeAfter.addEventListener('change', updateAllTotals);
-  });
 
   // モーダル
   function showTimeModal(targetInput, type) {
