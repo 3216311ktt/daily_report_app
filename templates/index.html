@@ -135,6 +135,10 @@
     if (!str) return 0;
     const [h, m] = str.split(':').map(Number);
     return (isNaN(h) || isNaN(m)) ? 0 : h * 60 + m;
+
+    if (totalMinutes >= 480) return 0;
+
+    return 480 - totalMinutes;
   }
 
   // 休日判定のための関数
@@ -534,6 +538,7 @@
 clearButton.onclick = () => {
   targetInput.value = '';
   modal.style.display = 'none';
+  updateAllTotals();
 };
 
 }
