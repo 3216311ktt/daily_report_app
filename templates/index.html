@@ -118,6 +118,7 @@
 <a href="/view_reports">←　編集画面</a>
 
 <script>
+
   const startHour = 8;
   const endHour = 18;
   const interval = 30;
@@ -248,7 +249,7 @@
     afterWrapper.appendChild(afterLabel);
     afterWrapper.appendChild(overtimeAfter);
 
-          // === 🧹 クリアボタンの追加 ===
+    // === 🧹 クリアボタンの追加 ===
     const clearBtn = document.createElement('button');
     clearBtn.className = 'clear-button';
     clearBtn.textContent = 'クリア';
@@ -266,12 +267,15 @@
       if (beforeInput) beforeInput.value = '';
       if (afterInput) afterInput.value = '';
 
+      entryEl.querySelectorAll('input').forEach(input => input.value = '');
+
       // スロット選択解除
       entryEl.querySelectorAll('.slot.selected').forEach(s => s.classList.remove('selected'));
 
       updateAllTotals();
-
+     
   });
+
     // タイムライン
     const timelineWrapper = document.createElement('div');
     timelineWrapper.className = 'timeline-wrapper';
@@ -516,6 +520,7 @@
     div.addEventListener('click', () => {
       targetInput.value = timeStr;  // 入力欄には hh:mm で表示
       modal.style.display = 'none';
+      document.removeEventListener('click', outsideClickListener);
       updateAllTotals();  // 必要に応じてここも修正する
     });
 
@@ -541,11 +546,26 @@
 
   
   // 表示キャンセル
- modal.addEventListener('click', function (e) {
-  if (!container.contains(e.target)) {
-    modal.style.display = 'none';
+  setTimeout(() => { // モーダル開いた直後の誤検出防止
+      document.removeEventListener('click', outsideClickListener);
+      document.addEventListener('click', outsideClickListener);
+  }, 0);
+
+  
+  function outsideClickListener(e) {
+  const ignoreClasses = ['overtime-timepicker', 'clear-button', 'time-options'];
+  if (ignoreClasses.some(cls => e.target.classList.contains(cls))) {
+    return; // 閉じない
   }
-});
+
+  // モーダルを閉じる処理
+  document.querySelectorAll('.time-modal').forEach(modal => {
+    modal.style.display = 'none';
+  });
+  document.removeEventListener('click', outsideClickListener);
+}
+
+
 
 // クリアボタン
 clearButton.onclick = () => {
