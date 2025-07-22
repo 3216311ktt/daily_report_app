@@ -511,6 +511,11 @@
     ...timeList.filter(t => t.totalMinutes < 4 * 60)
   ];
 
+  // 前残業のときは時間を逆順にする
+  if (type === 'before') {
+    reorderedTime.reverse();
+  }
+
   // 時間オプションを追加
   for (const { timeStr } of reorderedTime) {
     const div = document.createElement('div');
