@@ -130,18 +130,49 @@
   
   let allEntries = [];
 
+  // 変換用
+  function timeToMinutes(str) {
+    if (!str) return 0;
+    const [h, m] = str.split(':').map(Number);
+    return h * 60 + m;
+  }
+
   // 時間文字列を分に変換
   function timeStrToMinutes(str, type) {
     if (!str) return 0;
     const [h, m] = str.split(':').map(Number);
-    const totalMinutes = h * 60 + m;
+    let totalMinutes = h * 60 + m;
+
+    // 深夜を翌日の時間として補正
+    if (type === 'after' && totalMinutes < 300) {
+      totalMinutes += 1440;
+    }
 
     if (type === 'before') {
       return totalMinutes < 480 ? 480 - totalMinutes : 0;
     } else if (type === 'after') {
-      return totalMinutes > 1140 ? totalMinutes - 1140 : 0;
+      return totalMinutes > 1080 ? totalMinutes - 1080 : 0;
     }
     return 0;
+  }
+
+  // 全エントリの中で、最も遅い　overtimeEnd を返す
+  function getLatestActualEnd(entries) {
+    let latestMinutes = -1;
+    let latestTime = null;
+
+    entries.forEach(entry => {
+      const endTimeStr = entry.overtimeEnd || entry.end;
+      if (entry.overtimeEnd && typeof entry.overtimeEnd === 'string') {
+        const minutes = timeToMinutes(endTimeStr);
+        if (minutes > latestMinutes) {
+          latestMinutes = minutes;
+          latestTime = endTimeStr;
+        }
+      }
+    });
+
+    return latestTime;
   }
 
   // 休日判定のための関数
@@ -258,7 +289,7 @@
     overtimeAfter.placeholder = '後残業時刻';
     overtimeAfter.readOnly = true;
     overtimeAfter.style.width = '65px';
-    overtimeAfter.addEventListener('click', () => showTimeModal(overtimeAfter, 'after'));
+    overtimeAfter.addEventListener('click', () => showTimeModal(overtimeAfter, 'after', allEntries));
     
     afterWrapper.appendChild(afterLabel);
     afterWrapper.appendChild(overtimeAfter);
@@ -275,14 +306,6 @@
     clearBtn.addEventListener('click', () => {
       // クリアボタンの親の特定
       const entryEl = clearBtn.closest('.entry');
-
-      // 残業入力のクリア
-      const beforeInput = entryEl.querySelector('input[placeholder="前残業時刻"]');
-      const afterInput = entryEl.querySelector('input[placeholder="後残業時刻"]');
-      if (beforeInput) beforeInput.value = '';
-      if (afterInput) afterInput.value = '';
-
-      entryEl.querySelectorAll('input').forEach(input => input.value = '');
 
       // スロット選択解除
       entryEl.querySelectorAll('.slot.selected').forEach(s => s.classList.remove('selected'));
@@ -322,7 +345,7 @@
     bottomRow.style.display = 'flex';
     bottomRow.style.alignItems = 'center';
     bottomRow.style.marginTop = '6px';
-    bottomRow.style.width = '760px';
+    bottomRow.style.width = '780px';
     bottomRow.style.boxSizing = 'border-box';
 
     // 選択時間を表示
@@ -408,8 +431,8 @@
       const selected = entry.slots.filter(s => s.classList.contains('selected'));
       const minutes = selected.length * 30;
 
-      const overtimeBefore = timeStrToMinutes(entry.overtimeBefore.value);
-      const overtimeAfter = timeStrToMinutes(entry.overtimeAfter.value);
+      const overtimeBefore = timeStrToMinutes(entry.overtimeBefore.value, 'before');
+      const overtimeAfter = timeStrToMinutes(entry.overtimeAfter.value, 'after');
       const overtime = overtimeBefore + overtimeAfter;
 
       totalMinutes += minutes + overtime;
@@ -423,7 +446,7 @@
   }
 
   // モーダル
-  function showTimeModal(targetInput, type) {
+  function showTimeModal(targetInput, type, entries = []) {
   const modal = document.getElementById('timeModal');
   const container = document.getElementById('timeOptionsContainer');
   const clearButton = document.getElementById('clearTimeModal');
@@ -437,6 +460,15 @@
   };
 
   const excludedTimes = excludedTimesMap[type] || [];
+
+  // 直近の作業終了時刻を取得
+  let minSelectable = 0;
+  if (type === 'after' && entries.length > 0) {
+    const latestEndStr = getLatestActualEnd(entries);
+    if (latestEndStr) {
+      minSelectable = timeToMinutes(latestEndStr);
+    }
+  }
 
   const rect = targetInput.getBoundingClientRect();
   const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
@@ -464,6 +496,7 @@
       });
 
       if (!isExcluded) {
+        if (type === 'after' && totalMinutes <= minSelectable) continue;
         timeList.push({ timeStr: `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`, totalMinutes });
 
       }
