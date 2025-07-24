@@ -364,7 +364,7 @@
 
     entriesEl.appendChild(wrapper);
 
-    allEntries.push({ slots, output, overtimeBefore, overtimeAfter, paidLeaveInput });
+    allEntries.push({ slots, output, overtimeBefore, overtimeAfter, paidLeaveInput, overtimeEnd: null });
   }
 
   setupSlotEventHandlers();
@@ -427,23 +427,53 @@
     let totalMinutes = 0;
     let totalOvertime = 0;
 
-    allEntries.forEach(entry => {
+    // 通常時間　＋　前残業を先に計算
+    const entryData = allEntries.map(entry => {
       const selected = entry.slots.filter(s => s.classList.contains('selected'));
-      const minutes = selected.length * 30;
+      const workMinutes = selected.length * 30;
+      const overtimeBeforeMinutes = timeStrToMinutes(entry.overtimeBefore.value, 'before');
 
-      const overtimeBefore = timeStrToMinutes(entry.overtimeBefore.value, 'before');
-      const overtimeAfter = timeStrToMinutes(entry.overtimeAfter.value, 'after');
-      const overtime = overtimeBefore + overtimeAfter;
-
-      totalMinutes += minutes + overtime;
-      totalOvertime += overtime;
-
-      entry.output.textContent = `選択時間: ${(minutes + overtime) / 60} 時間（残業: ${(overtime / 60).toFixed(1)} 時間)`;
+      return {
+        entry,
+        workMinutes,
+        overtimeBeforeMinutes,
+        overtimeAfterMinutes: 0,
+        overtimeEndMinutes: entry.overtimeEnd ? timeToMinutes(entry.overtimeEnd) : null
+      };
     });
-  
+
+    // 後残業差分計算
+    const baseOvertimeStart = 18 * 60;
+    const sortedOvertimes = entryData
+      .filter(d => d.overtimeEndMinutes !== null)
+      .sort((a, b) => a.overtimeEndMinutes - b.overtimeEndMinutes);
+
+    let prevEndSorted = baseOvertimeStart;
+
+    sortedOvertimes.forEach(d => {
+      if (d.overtimeEndMinutes > prevEndSorted) {
+        const diff = d.overtimeEndMinutes - prevEndSorted;
+        d.overtimeAfterMinutes = diff;
+        prevEndSorted = d.overtimeEndMinutes;
+      }
+    });
+
+    // 件名ごとに合計時間反映
+    entryData.forEach(d => {
+      const totalEntryMinutes = d.workMinutes + d.overtimeBeforeMinutes + d.overtimeAfterMinutes;
+      const totalEntryOvertime = d.overtimeBeforeMinutes + d.overtimeAfterMinutes;
+
+      d.entry.output.textContent = `選択時間: ${(totalEntryMinutes / 60).toFixed(1)} 時間 (残業: ${(totalEntryOvertime / 60).toFixed(1)} 時間)` ;
+
+      totalMinutes += totalEntryMinutes;
+      totalOvertime += totalEntryOvertime;
+    });
+      
+    // --- 全体合計表示 ---
     overallTotalEl.textContent = (totalMinutes / 60).toFixed(1);
     overtimeTotalEl.textContent = (totalOvertime / 60).toFixed(1);
   }
+
 
   // モーダル
   function showTimeModal(targetInput, type, entries = []) {
@@ -522,6 +552,15 @@
 
     div.addEventListener('click', () => {
       targetInput.value = timeStr;  // 入力欄には hh:mm で表示
+
+      // overtimeAfter の場合は overtimeEnd として保存
+      if (type === 'after') {
+        const index = allEntries.findIndex(e => e.overtimeAfter === targetInput);
+        if (index !== -1) {
+          allEntries[index].overtimeEnd = timeStr;
+        }
+      }
+
       modal.style.display = 'none';
       document.removeEventListener('click', outsideClickListener);
       updateAllTotals();  // 必要に応じてここも修正する
@@ -573,6 +612,15 @@
 // クリアボタン
 clearButton.onclick = () => {
   targetInput.value = '';
+
+  // overtimeEEnd もクリア
+  if (type === 'after') {
+    const index = allEntries.findIndex(e => e.overtimeAfter === targetInput);
+    if (index !== -1) {
+      allEntries[index].overtimeEnd = null;
+    }
+  }
+
   modal.style.display = 'none';
   updateAllTotals();
 };
