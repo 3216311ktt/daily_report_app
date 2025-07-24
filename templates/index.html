@@ -44,41 +44,72 @@
 <!-- モーダル用のCSSを追加 -->
 <style>
 
+/* オーバーレイ */
+#modalOverlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  z-index: 9998;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+#modalOverlay.active {
+  display: block;
+  opacity: 1;
+}
+
+
   /* 共通モーダル背景 */
 #timeModal {
   display: none;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  padding: 1rem;
   z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 /* PC用モーダル */
 @media (min-width: 769px) {
   #timeModal {
     position: absolute;
-    background: white;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    border-radius: 6px;
-    padding: 10px;
     max-height: 300px;
     overflow-y: auto;
+    transform: none;
   }
 }
 
 /* スマホ用モーダル */
 @media (max-width: 768px) {
   #timeModal {
-    position: fixed;
-    bottom: 10%;
+    position: fixed;   /* ← absoluteから変更 */
+    top: 50%;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translate(-50%, -50%);
     width: 90%;
+    max-height: 60vh;
     background: #fff;
-    border: 1px solid #ccc;
-    box-shadow: 0 0 10px rgba(0,0,0,0.3);
-    padding: 1rem;
-    max-height: 50vh;
-    overflow-y: auto;
     border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    padding: 1rem;
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
   }
+
+  #timeModal.active {
+    opacity: 1;
+  }
+}
+
+/* active状態（フェードイン） */
+#timeModal.active {
+  opacity: 1;
 }
 
 .time-option {
@@ -102,6 +133,8 @@
 </style>
 
 <!-- モーダルHTML -->
+<div id="modalOverlay"></div>
+
 <div id="timeModal" class="time-modal">
     <div class="time-modal-content" id="timeOptionsContainer">
       <button id="clearTimeModal" class="clear-btn">クリア</button>
@@ -474,12 +507,21 @@
     overtimeTotalEl.textContent = (totalOvertime / 60).toFixed(1);
   }
 
+  let outsideClickListener = null; // グローバルに参照を保持
 
   // モーダル
   function showTimeModal(targetInput, type, entries = []) {
   const modal = document.getElementById('timeModal');
+  const overlay = document.getElementById('modalOverlay');
   const container = document.getElementById('timeOptionsContainer');
   const clearButton = document.getElementById('clearTimeModal');
+
+  // 前回のイベントリスナーを消去
+  if (outsideClickListener) {
+    document.removeEventListener('click', outsideClickListener);
+    outsideClickListener = null;
+  }
+  
 
   // 除外したい時間帯
   const excludedTimesMap = {
@@ -499,11 +541,6 @@
       minSelectable = timeToMinutes(latestEndStr);
     }
   }
-
-  const rect = targetInput.getBoundingClientRect();
-  const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-  const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-
 
  // 時間ボタンの生成
  container.innerHTML = '';
@@ -561,72 +598,111 @@
         }
       }
 
-      modal.style.display = 'none';
+      
       document.removeEventListener('click', outsideClickListener);
+      closeModal();
       updateAllTotals();  // 必要に応じてここも修正する
     });
 
     container.appendChild(div);
 
   }
+
+  // モーダル表示処理
    
-  if (window.innerWidth <= 768) {
-    // スマホ（画面下固定スタイル）
-    modal.style.display = 'block';
-    modal.style.buttom = '';
-    modal.style.left = '';
-    modal.style.transform = 'translateX(-50)';
-  } else {
+  if (window.innerWidth > 768) {
     // PCのときだけ入力欄の下に表示
-    modal.style.display = 'block';
+    const rect = targetInput.getBoundingClientRect();
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+
     modal.style.position = 'absolute';
     modal.style.top = (rect.bottom + scrollTop) + 'px';
     modal.style.left = (rect.left + scrollLeft) + 'px';
     modal.style.transform = 'none';
 
+   } 
+   else {
+    // スマホ: ズーム補正して入力欄の下に表示
+    const rect = targetInput.getBoundingClientRect();
+
+    // visualviweportでズーム倍率とオフセットを取得
+    const viewport = window.VisualViewport;
+    const scale = viewport ? viewport.scale : 1;
+    const offsetTop = viewport ? viewport.offsetTop : 0;
+    const offsetLeft = viewport ? viewport.offsetLeft : 0;
+
+    const top = (rect.bottom / scale) + offsetTop;
+    const left = (rect.left / scale) + offsetLeft;
+
+    modal.style.position = 'absolute';
+    modal.style.top = `${top}px`;
+    modal.style.left = `${left}px`;
+    modal.style.transform = 'none';
   }
 
-  
-  // 表示キャンセル
-  setTimeout(() => { // モーダル開いた直後の誤検出防止
-      document.removeEventListener('click', outsideClickListener);
-      document.addEventListener('click', outsideClickListener);
-  }, 0);
+  // オーバーレイとモーダルを表示
+  overlay.classList.add('active');
+  modal.classList.add('active');
+  modal.style.display = 'block';
 
-  
-  function outsideClickListener(e) {
-  const ignoreClasses = ['overtime-timepicker', 'clear-button', 'time-options'];
-  if (ignoreClasses.some(cls => e.target.classList.contains(cls))) {
-    return; // 閉じない
-  }
+  // 背景スクロール禁止
+  document.body.style.overflow = 'hidden';
 
   // モーダルを閉じる処理
-  document.querySelectorAll('.time-modal').forEach(modal => {
-    modal.style.display = 'none';
-  });
-  document.removeEventListener('click', outsideClickListener);
-}
+  function closeModal() {
+    overlay.classList.remove('active');
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
 
+    // transition終了後に diaplay:none
+    modal.addEventListener('transitionend', () => {
+      if (!modal.classList.contains('active')) modal.style.display = 'none';
+    }, { once: true });
 
+    // オーバーレイも同様に非表示
+    overlay.addEventListener('transitionend', () => {
+      if (!overlay.classList.contains('active')) overlay.style.display = 'none';
+    }, { once: true });
 
-// クリアボタン
-clearButton.onclick = () => {
-  targetInput.value = '';
-
-  // overtimeEEnd もクリア
-  if (type === 'after') {
-    const index = allEntries.findIndex(e => e.overtimeAfter === targetInput);
-    if (index !== -1) {
-      allEntries[index].overtimeEnd = null;
+    // 外側クリック解除
+    if (outsideClickHandler) {
+      document.removeEventListener('click', outsideClickHandler);
+      outsideClickHandler = null;
     }
   }
 
-  modal.style.display = 'none';
-  updateAllTotals();
-};
+  // 背景タップで閉じる
+  overlay.onclick = closeModal;
 
+  // PCのみ外側クリックでも閉じる
+  if (window.innerWidth > 768) {
+    outsideClickHandler = function (e) {
+      if (!modal.contains(e.target) && !targetInput.contains(e.target)) {
+        closeModal();
+      }
+    };
+
+    setTimeout(() => {
+      document.addEventListener('click', outsideClickHandler);
+    }, 0);
 }
+  // クリアボタン
+  clearButton.onclick = () => {
+    targetInput.value = '';
 
+    // overtimeEEnd もクリア
+    if (type === 'after') {
+      const index = allEntries.findIndex(e => e.overtimeAfter === targetInput);
+      if (index !== -1) {
+        allEntries[index].overtimeEnd = null;
+      }
+    }
+
+    closeModal();
+    updateAllTotals();
+  }; 
+}
 
 
   function toggleNameInpit() {
@@ -754,6 +830,7 @@ clearButton.onclick = () => {
       }
     });
   });
+
 </script>
 
 </body>
