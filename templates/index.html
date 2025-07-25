@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" >
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" >
   <link rel="stylesheet" href="static/index_style.css">
   <title>日報入力</title>
 
@@ -41,9 +41,64 @@
 <br>
 <div id="entries"></div>
 
-<!-- モーダル用のCSSを追加 -->
+
 <style>
 
+/* PC・タブレット（768PX以上） */
+@media screen and (min-width: 768px) {
+  .timeline-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .bottom-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-top: 6px;
+    width: 780px;
+  }
+}
+
+/* スマホのみ（767px以下） */
+@media screen and (max-width: 767px) {
+  .timeline-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .before-wrapper,
+  .timeline-wrapper,
+  .after-wrapper {
+    width: 100%;
+  }
+
+  /* 午前・午後スロットを分割するためにボーダー or 余白 */
+  .timeline-wrapper .morning-slots {
+    border-bottom: 1px solid #ccc;
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+  }
+
+  .bottom-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-top: 8px;
+    width: 100%;
+  }
+
+  .clear-button {
+    width: auto;
+    margin-left: 0;
+  }
+}
+
+/* モーダル用のCSSを追加 */
 /* オーバーレイ */
 #modalOverlay {
   display: none;
@@ -52,7 +107,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0,0,0,0.4);
   z-index: 9998;
   opacity: 0;
   transition: opacity 0.3s ease;
@@ -73,6 +128,9 @@
   z-index: 9999;
   opacity: 0;
   transition: opacity 0.3s ease, transform 0.3s ease;
+  position: absolute;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 /* PC用モーダル */
@@ -86,13 +144,13 @@
 }
 
 /* スマホ用モーダル */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   #timeModal {
-    position: fixed;   /* ← absoluteから変更 */
+    position: fixed;   
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 90%;
+    width: 30%;
     max-height: 60vh;
     background: #fff;
     border-radius: 10px;
@@ -355,12 +413,12 @@
     timeline.className = 'timeline';
 
     const slots = createTimeSlots().map(({ time, label, disabled, boldLeft }) => {
-      const el = document.createElement('div');
-      el.className = 'slot';
-      if (disabled) el.classList.add('disabled');
-      if (boldLeft) el.classList.add('bold-left');
-      el.dataset.time = time;
-      el.textContent = label;
+  const el = document.createElement('div');
+  el.className = 'slot';
+  if (disabled) el.classList.add('disabled');
+  if (boldLeft) el.classList.add('bold-left');
+  el.dataset.time = time;
+  el.textContent = label;
       timeline.appendChild(el);
       return el;
     });
@@ -370,15 +428,16 @@
     timelineRow.appendChild(beforeWrapper);
     timelineRow.appendChild(timelineWrapper);
     timelineRow.appendChild(afterWrapper);
-  
+    
     wrapper.appendChild(timelineRow);
 
     // 出力行とクリアボタンを包む　div を作成
     const bottomRow = document.createElement('div');
-    bottomRow.style.display = 'flex';
+    bottomRow.className = 'bottom-row'
+    // bottomRow.style.display = 'flex';
     bottomRow.style.alignItems = 'center';
     bottomRow.style.marginTop = '6px';
-    bottomRow.style.width = '780px';
+    // bottomRow.style.width = '780px';
     bottomRow.style.boxSizing = 'border-box';
 
     // 選択時間を表示
@@ -623,22 +682,10 @@
 
    } 
    else {
-    // スマホ: ズーム補正して入力欄の下に表示
-    const rect = targetInput.getBoundingClientRect();
-
-    // visualviweportでズーム倍率とオフセットを取得
-    const viewport = window.VisualViewport;
-    const scale = viewport ? viewport.scale : 1;
-    const offsetTop = viewport ? viewport.offsetTop : 0;
-    const offsetLeft = viewport ? viewport.offsetLeft : 0;
-
-    const top = (rect.bottom / scale) + offsetTop;
-    const left = (rect.left / scale) + offsetLeft;
-
-    modal.style.position = 'absolute';
-    modal.style.top = `${top}px`;
-    modal.style.left = `${left}px`;
-    modal.style.transform = 'none';
+    modal.style.position = 'fixed';
+    modal.style.top = `50%`;
+    modal.style.left = `50%`;
+    modal.style.transform = 'translate(-50%, -50%)';
   }
 
   // オーバーレイとモーダルを表示
