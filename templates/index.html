@@ -657,10 +657,11 @@
         }
       }
 
+      updateAllTotals();
+
       
       document.removeEventListener('click', outsideClickListener);
       closeModal();
-      updateAllTotals();  // 必要に応じてここも修正する
     });
 
     container.appendChild(div);
@@ -745,9 +746,10 @@
         allEntries[index].overtimeEnd = null;
       }
     }
+    updateAllTotals();
 
     closeModal();
-    updateAllTotals();
+    
   }; 
 }
 
