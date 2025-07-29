@@ -268,35 +268,42 @@
 
   // 通常時間の重なり防止対策
   function updateSlotDisabling() {
-  // 各エントリの最大選択時刻（分）を取得
-  const endTimes = allEntries.map(entry => {
-    const selected = entry.slots.filter(s => s.classList.contains('selected'));
-    if (selected.length === 0) return null;
-    return Math.max(...selected.map(s => timeToMinutes(s.dataset.time))) + 30;
+  // 全エントリの中で、各スロットがどのエントリに選ばれているかを把握
+  const usedSlots = new Set();
+
+  allEntries.forEach(entry => {
+    entry.slots.forEach(slot => {
+      if (slot.classList.contains('selected')) {
+        usedSlots.add(slot.dataset.time);
+      }
+    });
   });
 
-  allEntries.forEach((entry, index) => {
-    // 自分より前のエントリの最大終了時刻を取得
-    let minStartMinutes = 8 * 60 + 30; // デフォルト8:30
-    for (let i = 0; i < index; i++) {
-      if (endTimes[i] !== null) {
-        minStartMinutes = Math.max(minStartMinutes, endTimes[i]);
-      }
-    }
-
+  // 各エントリごとにスロットを更新
+  allEntries.forEach(entry => {
     entry.slots.forEach(slot => {
-      const slotMinutes = timeToMinutes(slot.dataset.time);
-      const isBaseDisabled = slot.dataset.baseDisabled === 'true';
+      const slotTime = slot.dataset.time;
+      const baseDisabled = slot.dataset.baseDisabled === 'true';
+      const isSelected = slot.classList.contains('selected');
 
-      if (slotMinutes < minStartMinutes || isBaseDisabled) {
+      if (baseDisabled) {
+        // ベースで無効（昼休みなど）
         slot.classList.add('disabled');
-        slot.classList.remove('selected');
+      } else if (isSelected) {
+        // 自分が選択中なら常に有効
+        slot.classList.remove('disabled');
+      } else if (usedSlots.has(slotTime)) {
+        // 他エントリで使われているスロット → 無効
+        slot.classList.add('disabled');
+        slot.classList.remove('selected'); // 念のため
       } else {
+        // 使われていない＆自分も未選択 → 有効
         slot.classList.remove('disabled');
       }
     });
   });
 }
+
 
 
   // 休日判定のための関数
