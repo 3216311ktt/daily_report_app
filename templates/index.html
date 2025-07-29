@@ -266,6 +266,39 @@
     return latestTime;
   }
 
+  // 通常時間の重なり防止対策
+  function updateSlotDisabling() {
+  // 各エントリの最大選択時刻（分）を取得
+  const endTimes = allEntries.map(entry => {
+    const selected = entry.slots.filter(s => s.classList.contains('selected'));
+    if (selected.length === 0) return null;
+    return Math.max(...selected.map(s => timeToMinutes(s.dataset.time))) + 30;
+  });
+
+  allEntries.forEach((entry, index) => {
+    // 自分より前のエントリの最大終了時刻を取得
+    let minStartMinutes = 8 * 60 + 30; // デフォルト8:30
+    for (let i = 0; i < index; i++) {
+      if (endTimes[i] !== null) {
+        minStartMinutes = Math.max(minStartMinutes, endTimes[i]);
+      }
+    }
+
+    entry.slots.forEach(slot => {
+      const slotMinutes = timeToMinutes(slot.dataset.time);
+      const isBaseDisabled = slot.dataset.baseDisabled === 'true';
+
+      if (slotMinutes < minStartMinutes || isBaseDisabled) {
+        slot.classList.add('disabled');
+        slot.classList.remove('selected');
+      } else {
+        slot.classList.remove('disabled');
+      }
+    });
+  });
+}
+
+
   // 休日判定のための関数
   function checkIfHoliday() {
   const date = document.getElementById('dateInput').value;
@@ -295,7 +328,7 @@
         const isDisabled = (h === 8 && m === 0) || (h === 12 && m <= 30) || (h === 17 && m == 30);
         const isBoldLeft = (h === 8 && m === 30) || (h === 17 && m === 30);
 
-        slots.push({ time, label, disabled: isDisabled, boldLeft: isBoldLeft });
+        slots.push({ time, label, disabled: isDisabled, boldLeft: isBoldLeft, baseDisabled: isDisabled });
       }
     }
     return slots;
@@ -412,13 +445,15 @@
     const timeline = document.createElement('div');
     timeline.className = 'timeline';
 
-    const slots = createTimeSlots().map(({ time, label, disabled, boldLeft }) => {
-  const el = document.createElement('div');
-  el.className = 'slot';
-  if (disabled) el.classList.add('disabled');
-  if (boldLeft) el.classList.add('bold-left');
-  el.dataset.time = time;
-  el.textContent = label;
+    const slots = createTimeSlots().map(({ time, label, disabled, boldLeft, baseDisabled }) => {
+      const el = document.createElement('div');
+      el.className = 'slot';
+      if (baseDisabled) el.classList.add('disabled');
+      if (boldLeft) el.classList.add('bold-left');
+      el.dataset.time = time;
+      el.textContent = label;
+      el.dataset.baseDisabled = baseDisabled ? 'true' : 'false';
+
       timeline.appendChild(el);
       return el;
     });
@@ -564,6 +599,8 @@
     // --- 全体合計表示 ---
     overallTotalEl.textContent = (totalMinutes / 60).toFixed(1);
     overtimeTotalEl.textContent = (totalOvertime / 60).toFixed(1);
+
+    updateSlotDisabling();
   }
 
   let outsideClickListener = null; // グローバルに参照を保持
