@@ -169,28 +169,33 @@ def index():
 
 @app.route('/submit', methods=['POST'])
 def submit():
-    reports = request.json.get('reports', [])
-    name = request.json.get('name', '未入力')
-    date = datetime.now().strftime('%Y-%m-%d')
-    is_holiday_work = request.json.get('is_holiday_work', False)
-
-    print('POSTされたデータ:', reports)
-    print('名前:', name, '日付:', date, '休日出勤:', is_holiday_work
-          )
+    data = request.json
+    reports = data.get('reports', [])
+    name = data.get('name', '未入力')
+    date = date.get('date', datetime.now().strftime('%Y-%m-%d'))
+    is_holiday_work = data.get('is_holiday_work', False)
 
     for entry in reports:
+            # total_minutesを再計算して安全性確保
+            calc_total = (
+                entry.get('work_minutes', 0) +
+                entry.get('overtime_before', 0) +
+                entry.get('overtime_after', 0)
+            )
+            entry_total = entry.get('total_minutes', 0)
+            if entry_total != calc_total:
+                entry_total = calc_total
+
             # 共通部分
             base_data = dict(
                 name=name,
                 title=entry.get('title'),
                 task= entry.get('task'),
                 partner=entry.get('partner'),
+                date=date,
                 is_holiday_work=is_holiday_work,
-                overtime_before=entry.get('overtime_before'),
-                overtime_after=entry.get('overtime_after'),
-                total_minutes=entry.get('total_minutes'),
-                paid_leave_minutes=entry.get('paid_leave_minutes', 8),
-                date=date
+                overtime_before=entry.get('overtime_before', 0),
+                overtime_after=entry.get('overtime_after', 0),
             )
 
             if is_holiday_work:
@@ -200,6 +205,9 @@ def submit():
                     holiday_end_hour=entry.get('end_hour'),
                     holiday_end_minute=entry.get('end_minute'),
                     holiday_work_minutes=entry.get('work_minutes'),
+                    # holliday_total_minutes を計算して入れる
+                    holiday_totoal_minutes=entry_total,
+                    paid_leave_minutes=0
                 )
             else:
                 base_data.update(
@@ -207,7 +215,9 @@ def submit():
                     start_minute=entry.get('start_minute'),
                     end_hour=entry.get('end_hour'),
                     end_minute=entry.get('end_minute'),
-                    work_minutes=entry.get('work_minutes'),
+                    work_minutes=entry.get('work_minutes', 0),
+                    total_minutes=entry_total,
+                    paid_leave_minutes=entry.get('paid_leave_minutes', 0)
             )
             
             report = DailyReport(**base_data)   

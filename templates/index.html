@@ -247,6 +247,20 @@
     return 0;
   }
 
+  // 休日出勤時は有給入力欄を非表示
+  function togglePaidLeaveVisibility(isHoliday) {
+    const paidLeaveInputs = document.querySelectorAll('.paid_leave');
+
+    paidLeaveInputs.forEach(input => {
+      if (isHoliday) {
+        input.style.display = 'none'; // 休日出勤時は非表示
+        input.value = ''; // 値もクリア
+      } else {
+        input.style.display ='inline-block'; // 通常時は表示
+      }
+    });
+  }
+
   // 全エントリの中で、最も遅い　overtimeEnd を返す
   function getLatestActualEnd(entries) {
     let latestMinutes = -1;
@@ -315,16 +329,27 @@
     .then(response => response.json())
     .then(data => {
       const isHoliday = data.is_holiday;
-      document.getElementById('isHolidayWork').checked = isHoliday;
+      const holidayCheckbox = document.getElementById('isHolidayWork');
+
+      // 休日出勤チェックボックスの状態を更新
+      holidayCheckbox.checked = isHoliday;
       console.log(`この日は休日？: ${isHoliday}`);
+
+      togglePaidLeaveVisibility(isHoliday);
     })
     .catch(err => console.error(err));
 }
   // 初期化
   document.addEventListener('DOMContentLoaded', () => {
     checkIfHoliday();
-  });
 
+     // 休日勤務チェックが手動で切り替わった時にも有休欄を更新
+    document.getElementById('isHolidayWork').addEventListener('change', function () {
+    togglePaidLeaveVisibility(this.checked);
+  });
+});
+
+  // 件名数セレクタの変更イベント
   function createTimeSlots() {
     const slots = [];
     for (let h = startHour; h < endHour; h++) {
@@ -812,6 +837,11 @@
     const nameSelect = document.getElementById("nameSelect");
     const customName = document.getElementById("customName");
     let name = "";
+    const date = document.getElementById("dateInput").value;
+    if (!date) {
+      alert("日付を選択してください");
+      return;
+    }
 
     if (nameSelect.value === "__other__") {
       name = customName.value.trim();
@@ -879,7 +909,7 @@
     fetch('/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, is_holiday_work: isHolidayWork, reports })
+      body: JSON.stringify({ name, date, is_holiday_work: isHolidayWork, reports })
     }).then(res => res.json()).then(data => {
       if (data.status === 'success') alert('保存しました！');
       else alert('保存に失敗しました');
