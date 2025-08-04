@@ -501,10 +501,8 @@
     // 出力行とクリアボタンを包む　div を作成
     const bottomRow = document.createElement('div');
     bottomRow.className = 'bottom-row'
-    // bottomRow.style.display = 'flex';
     bottomRow.style.alignItems = 'center';
     bottomRow.style.marginTop = '6px';
-    // bottomRow.style.width = '780px';
     bottomRow.style.boxSizing = 'border-box';
 
     // 選択時間を表示
@@ -863,8 +861,8 @@
     const reports = allEntries.map(entry => {
       const selectedSlots = entry.slots.filter(s => s.classList.contains('selected'));
       const workMinutes = selectedSlots.length * 30;
-      const overtimeBefore = parseInt(entry.overtimeBefore.value, 10);
-      const overtimeAfter = parseInt(entry.overtimeAfter.value, 10);
+      const overtimeBefore = timeStrToMinutes(entry.overtimeBefore.value, 'before');
+      const overtimeAfter = timeStrToMinutes(entry.overtimeAfter.value, 'after');
       const total = workMinutes + overtimeBefore + overtimeAfter;
       // 有休入力の取得
       const paidLeaveInput = entry.paidLeaveInput;
@@ -904,6 +902,16 @@
         paid_leave_minutes,
       };
     });
+
+    // 送信データをまとめる
+    const data = {
+      name,
+      date,
+      is_holiday_work: isHolidayWork,
+      reports
+    };
+
+    console.log(JSON.stringify(data, null, 2));
 
     // POST送信
     fetch('/submit', {

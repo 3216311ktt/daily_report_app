@@ -172,56 +172,60 @@ def submit():
     data = request.json
     reports = data.get('reports', [])
     name = data.get('name', '未入力')
-    date = date.get('date', datetime.now().strftime('%Y-%m-%d'))
+    date = data.get('date', datetime.now().strftime('%Y-%m-%d'))
     is_holiday_work = data.get('is_holiday_work', False)
 
     for entry in reports:
-            # total_minutesを再計算して安全性確保
-            calc_total = (
-                entry.get('work_minutes', 0) +
-                entry.get('overtime_before', 0) +
-                entry.get('overtime_after', 0)
-            )
-            entry_total = entry.get('total_minutes', 0)
-            if entry_total != calc_total:
-                entry_total = calc_total
+        work_minutes = entry.get('work_minutes') or 0
+        overtime_before = entry.get('overtime_before') or 0
+        overtime_after = entry.get('overtime_after') or 0
 
-            # 共通部分
-            base_data = dict(
-                name=name,
-                title=entry.get('title'),
-                task= entry.get('task'),
-                partner=entry.get('partner'),
-                date=date,
-                is_holiday_work=is_holiday_work,
-                overtime_before=entry.get('overtime_before', 0),
-                overtime_after=entry.get('overtime_after', 0),
-            )
+        calc_total = work_minutes + overtime_before + overtime_after
+        entry_total = entry.get('total_minutes') or 0
+        if entry_total != calc_total:
+            entry_total = calc_total
 
-            if is_holiday_work:
-                base_data.update(
-                    holiday_start_hour=entry.get('start_hour'),
-                    holiday_start_minute=entry.get('start_minute'),
-                    holiday_end_hour=entry.get('end_hour'),
-                    holiday_end_minute=entry.get('end_minute'),
-                    holiday_work_minutes=entry.get('work_minutes'),
-                    # holliday_total_minutes を計算して入れる
-                    holiday_totoal_minutes=entry_total,
-                    paid_leave_minutes=0
-                )
-            else:
-                base_data.update(
-                    start_hour=entry.get('start_hour'),
-                    start_minute=entry.get('start_minute'),
-                    end_hour=entry.get('end_hour'),
-                    end_minute=entry.get('end_minute'),
-                    work_minutes=entry.get('work_minutes', 0),
-                    total_minutes=entry_total,
-                    paid_leave_minutes=entry.get('paid_leave_minutes', 0)
+        # 共通部分
+        base_data = dict(
+            name=name,
+            title=entry.get('title'),
+            task= entry.get('task'),
+            partner=entry.get('partner'),
+            date=date,
+            is_holiday_work=is_holiday_work,
+            overtime_before=entry.get('overtime_before', 0),
+            overtime_after=entry.get('overtime_after', 0),
+        )
+
+        if is_holiday_work:
+            holiday_work_minutes = entry.get('work_minutes') or 0
+            overtime_before = entry.get('overtime_before') or 0
+            overtime_after = entry.get('overtime_after') or 0
+            holiday_total_minutes = (overtime_before + holiday_work_minutes + overtime_after)
+
+            base_data.update(
+                holiday_start_hour=entry.get('start_hour'),
+                holiday_start_minute=entry.get('start_minute'),
+                holiday_end_hour=entry.get('end_hour'),
+                holiday_end_minute=entry.get('end_minute'),
+                holiday_work_minutes=holiday_work_minutes,
+                # holiday_total_minutes を計算して入れる
+                holiday_total_minutes=holiday_total_minutes,
+                paid_leave_minutes=0
             )
-            
-            report = DailyReport(**base_data)   
-            db.session.add(report)
+        else:
+            base_data.update(
+                start_hour=entry.get('start_hour'),
+                start_minute=entry.get('start_minute'),
+                end_hour=entry.get('end_hour'),
+                end_minute=entry.get('end_minute'),
+                work_minutes=entry.get('work_minutes', 0),
+                total_minutes=entry_total,
+                paid_leave_minutes=entry.get('paid_leave_minutes', 0)
+        )
+        
+        report = DailyReport(**base_data)   
+        db.session.add(report)
 
     db.session.commit()
     return {'status': 'success'}
@@ -387,7 +391,7 @@ def check_approval():
     data = request.get_json()
     report_id = data['report_id']
     role = data['role']
-    checked = data['checked']
+    checked = True if data['checked'] in [True, 'true', 1, '1'] else False
 
     if not session.get(f'{role}_logged_in'):
         return jsonify({'seccess': False, 'message': 'ログインしてください'})

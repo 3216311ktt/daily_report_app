@@ -33,6 +33,12 @@
       background-color: #90ee90;
     }
 
+    /* 休日勤務用（赤っぽい色） */
+    .timeline-wrapper.holiday .slot.selected {
+      background-color: #ff9999;  /* 赤系 */
+    }
+
+
     .slot.excluded {
       background-color: #ddd !important;
       cursor: default;

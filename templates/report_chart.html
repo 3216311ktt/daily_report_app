@@ -52,7 +52,7 @@
                class="approval-checkbox"
                data-role="director"
                data-report-id="{{ report.id }}"
-               {% if report.manager_checked %}checked{% endif %}>
+               {% if report.director_checked %}checked{% endif %}>
         部長確認
       </label>
       <label>
@@ -60,7 +60,7 @@
                class="approval-checkbox"
                data-role="president"
                data-report-id="{{ report.id }}"
-               {% if report.manager_checked %}checked{% endif %}>
+               {% if report.president_checked %}checked{% endif %}>
         社長確認
       </label>
     </div>
@@ -91,8 +91,13 @@
         </div>
       {% endif %}
         <div><span class="label">この作業時間:</span>
-          {{ (report.total_minutes or 0) // 60 }} 時間
-          {{ (report.total_minutes or 0) % 60 }} 分
+          {% if report.is_holiday_work %}
+            {{ (report.holiday_total_minutes or 0) // 60 }} 時間
+            {{ (report.holiday_total_minutes or 0) % 60 }} 分
+          {% else %}
+            {{ (report.total_minutes or 0) // 60 }} 時間
+            {{ (report.total_minutes or 0) % 60 }} 分
+          {% endif %}
         </div>
       {% set date_name_key = report.date ~ '_' ~ report.name %}
       {% if date_name_key not in shown_dates %}
@@ -119,16 +124,23 @@
           <div style="min-width: 80px;"></div>
         {% endif %}
 
-      <div class="timeline-wrapper" style="flex-grow: 1;">
+      <div class="timeline-wrapper {% if report.is_holiday_work %}holiday{% else %}normal{% endif %}" style="flex-grow: 1;">
         <div class="timeline">
           {% for hour in range(8, 18) %}
             {% for minute in [0, 30] %}
               {% set time = hour * 60 + minute %}
               {% set time_str = '{}:{:02d}'.format(hour, minute) %}
               {% set time_in_minutes = time %}
+              
+              {% if report.is_holiday_work %}
+                {% set work_start = report.holiday_start_hour * 60 + report.holiday_start_minute if report.holiday_start_hour is not none else None %}
+                {% set work_end = report.holiday_end_hour * 60 + report.holiday_end_minute if report.holiday_end_hour is not none else None %}
+              {% else %}
+                {% set work_start = report.start_hour * 60 + report.start_minute if report.start_hour is not none else None %}
+                {% set work_end = report.end_hour * 60 + report.end_minute if report.end_hour is not none else None %}
+              {% endif %}
 
-              {% set work_start = report.start_hour * 60 + report.start_minute if report.start_hour is not none else None %}
-              {% set work_end = report.end_hour * 60 + report.end_minute if report.end_hour is not none else None %}
+              {% set is_selected = (not excluded and work_start is not none and work_end is not none and work_start <= time <= work_end) %}
 
               {% set is_before_overtime = report.overtime_before and work_start is not none and time_in_minutes >= work_start - report.overtime_before and time_in_minutes < work_start %}
               {% set is_after_overtime = report.overtime_after and work_end is not none and time_in_minutes > work_end and time_in_minutes <= work_end + report.overtime_after %}
@@ -137,13 +149,19 @@
               {# ⛔️ 除外時間帯かどうかチェック #}
               {% set excluded = time in [480, 720, 750, 1050] %}  {# 8:00, 12:00, 12:30, 17:30 #}
 
-              {% set is_selected = (not excluded and report.start_hour is not none and report.start_minute is not none
-                and report.end_hour is not none and report.end_minute is not none
-                and (report.start_hour * 60 + report.start_minute) <= time <= (report.end_hour * 60 + report.end_minute)) %}
+              {% if report.is_holiday_work %}
+                {% set is_selected = (not excluded and report.holiday_start_hour is not none and report.holiday_start_minute is not none
+                  and report.holiday_end_hour is not none and report.holiday_end_minute is not none
+                  and (report.holiday_start_hour * 60 + report.holiday_start_minute) <= time <= (report.holiday_end_hour * 60 + report.holiday_end_minute)) %}
+              {% else %}
+                {% set is_selected = (not excluded and report.start_hour is not none and report.start_minute is not none
+                  and report.end_hour is not none and report.end_minute is not none
+                  and (report.start_hour * 60 + report.start_minute) <= time <= (report.end_hour * 60 + report.end_minute)) %}
+              {% endif %}
 
               {# 線を太くする時間帯（8:30 / 17:30）#}
               {% set bold_left = time in [510, 1050] %}
-                
+  
               <div class="slot
                           {% if is_selected %}selected{% endif %}
                           {% if excluded %}excluded{% endif %}
@@ -214,6 +232,11 @@
 
       if (!data.logged_in) {
         const password = prompt(`${role}のパスワードを入力してください:`);
+        if (!password) {
+          this.checked = !this.checked; // チェックを元に戻す
+          return;
+        }
+        // パスワードを送信してログイン
         res = await fetch('/login_role', {
           method: 'POST',
           headers: {
@@ -237,6 +260,11 @@
         },
         body: JSON.stringify({ role: role, report_id: reportId, checked: this.checked })
       });
+      data = await res.json();
+      if (!data.success) {
+        alert(data.massage || 'チェック更新に失敗しました');
+        this.checked = !this.checked; // チェックを元に戻す
+      }
     });
   });
 </script>
