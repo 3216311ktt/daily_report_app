@@ -42,8 +42,9 @@
                 <th>作業内容</th>
                 <th>同行者</th>
                 <th>前残業</th>
-                <th>通常</th>
+                <th>作業時間</th>
                 <th>後残業</th>
+                <th>有給</th>
                 <th>合計</th>
                 <th>操作</th>
             </tr>
@@ -71,6 +72,9 @@
 
                 <!-- 後残業 -->
                 <td>{{ (r.overtime_after or 0) / 60 | round(2) }}時間</td>
+
+                <!-- 有給 -->
+                <td>{{ (r.paid_leave_minutes or 0) / 60 | round(2) }}時間</td>
 
                 <!-- 合計時間 -->
                 <td>

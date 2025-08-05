@@ -268,6 +268,7 @@ def edit_report(id):
         report.partner = request.form['partner']
         report.overtime_before = int(float(request.form['overtime_before']) * 60)
         report.overtime_after = int(float(request.form['overtime_after']) *60)
+        report.paid_leave_minutes = int(float(request.form['paid_leave_minutes'] or 0) * 60) 
 
         if report.is_holiday_work:
             # 休日出勤の場合
