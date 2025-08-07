@@ -88,7 +88,15 @@ def api_calendar():
             except ValueError:
                 continue
             
-            color = '#f00' if row['type'] == 'holiday' else '#0a0'
+            # 色の設定
+            if row['type'] == 'holiday':
+                color = '#f00'
+            elif row['type'] == 'workday':
+                color = '#0a0'
+            elif row['type'] == 'paidleave':
+                color = '#00bfff'
+            else:
+                color = '#ccc'
 
             events.append({
                 "title": row['description'],
