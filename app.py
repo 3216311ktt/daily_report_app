@@ -424,7 +424,7 @@ def monthly_report():
     #                        grouped=grouped)
     performance_rate = round((258850 / 1091200) * 100, 2)
     context = {
-        "name": "田中 郁二",
+        "name": "田中",
         "month": "2025-07",
         "basic_time": "22 日",
         "overtime_a": "2.5 H",
