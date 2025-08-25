@@ -11,6 +11,7 @@
       border: 1px solid #ccc;
       padding: 4px;
       margin-top: 5px;
+      max-width: 625px;
     }
 
     .timeline {

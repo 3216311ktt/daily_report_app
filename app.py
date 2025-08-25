@@ -1,7 +1,7 @@
 import os
 import jpholiday
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session
-from models import db, DailyReport
+from models import db, DailyReport, CompanyCalendar
 from datetime import datetime, timedelta
 from collections import defaultdict
 from operator import attrgetter
@@ -11,7 +11,7 @@ from holiday_manager import HolidayManager
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 
-holiday_checker = HolidayManager('static/company_calendar.csv')
+# holiday_checker = HolidayManager('static/company_calendar.csv')
 
 # 安定するpath
 # このファイルがあるディレクトリ（app.py）
@@ -69,32 +69,46 @@ def api_calendar():
     
         
     # 会社独自カレンダー
-    for row in holiday_checker.company_calendar:
+    for row in CompanyCalendar.query.all():
         # 年なしは仮に今年を付けておく
-        date_str = row['date']
+        date_str = row.date
         is_yearless = len(date_str) == 5
 
-        for year in years:
-            if is_yearless:
-                full_date = f"{year}-{date_str}"
-            else:
-                if int(date_str[:4]) != year:
-                    continue
-                full_date = date_str
+        # 色の設定
+        if row.type == 'holiday':
+            color = '#f00'
+        elif row.type == 'workday':
+            color = '#0a0'
+        elif row.type == 'paidleave':
+            color = '#00bfff'
+        else:
+            color = '#ccc'
 
-            # 無効な日付はスキップ
+        if is_yearless:
+            # 年なしの場合だけ、対象の複数年に展開
+            for year in years:
+                full_date = f"{year}-{date_str}"
+                try:
+                    datetime.strptime(full_date, '%Y-%m-%d')
+                except ValueError:
+                    continue
+                events.append({
+                    "title": row.description,
+                    "start": full_date,
+                    "color": color,
+                })
+        else:
+            # 年ありはそのまま
             try:
-                datetime.strptime(full_date, '%Y-%m-%d')
+                datetime.strptime(date_str, '%Y-%m-%d')
             except ValueError:
                 continue
-            
-            color = '#f00' if row['type'] == 'holiday' else '#0a0'
-
             events.append({
-                "title": row['description'],
-                "start": full_date,
-                "color": color
+                    "title": row.description,
+                    "start": date_str,
+                    "color": color
             })
+            
 
     # jpholidayの祝日
     for year in years:
@@ -114,6 +128,25 @@ def api_calendar():
 
     return jsonify(events)
 
+# 会社カレンダーの内容削除
+@app.route('/api/delete',methods=['POST'])
+def api_delete():
+    data = request.json
+    date = data.get('date').strip()
+
+   # DBから検索
+    record = CompanyCalendar.query.filter_by(date=date).first()
+
+    if not record:
+        return jsonify({'status': 'not_found'})
+
+    # 削除
+    db.session.delete(record)
+    db.session.commit()
+
+    return jsonify({'status': 'deleted'})
+
+
 @app.route('/api/update', methods=['POST'])
 def api_update():
     data = request.json
@@ -121,23 +154,18 @@ def api_update():
     description = data.get('description').strip()
     day_type = data.get('type').strip()
 
-    # 既存データ更新 or 新規追加
-    found = False
-    for row in holiday_checker.company_calendar:
-        if row['date'] == date:
-            row['description'] = description
-            row['type'] = day_type
-            found = True
-            break
-    if not found:
-        holiday_checker.company_calendar.append({
-            'date': date,
-            'description': description,
-            'type': day_type
-        })
+     # DBから検索
+    record = CompanyCalendar.query.filter_by(date=date).first()
+    if record:
+        record.description = description
+        record.type = day_type
+    else:
+        record = CompanyCalendar(date=date, description=description, type=day_type)
+        db.session.add(record)
 
-    holiday_checker.save_calendar()
+    db.session.commit()
     return jsonify({'status': 'success'})
+    
 
 # 休日自動判定
 @app.route('/api/check_holiday')
@@ -146,21 +174,66 @@ def api_check_holiday():
     if not date_str:
         return jsonify({'error': 'date is required'}), 400
 
-    is_holiday = holiday_checker.is_holiday(date_str)
+    # is_holiday = holiday_checker.is_holiday(date_str)
+    # return jsonify({'date': date_str, 'is_holiday': is_holiday})
+    try:
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+    except ValueError:
+        return jsonify({'error': 'invalid date format'}), 400
+
+    # DBで会社カレンダーを確認
+    record = CompanyCalendar.query.filter_by(date=date_str).first()
+    if record:
+        if record.type == 'holiday':
+            is_holiday = True
+        elif record.type == 'workday':
+            is_holiday = False
+        elif record.type == 'paidleave':
+            is_holiday = True  # 必要に応じて変更
+        else:
+            is_holiday = False
+    else:
+        # DB になければ土日・祝日で判定
+        if date_obj.weekday() >= 5:  # 土日
+            is_holiday = True
+        elif jpholiday.is_holiday(date_obj):
+            is_holiday = True
+        else:
+            is_holiday = False
+
     return jsonify({'date': date_str, 'is_holiday': is_holiday})
 
 
 @app.route('/')
 def index():
-    # データベースから名前の一覧を取得
+   # データベースから名前の一覧を取得
     name_list = db.session.query(DailyReport.name).distinct().order_by(DailyReport.name).all()
     name_list = [n[0] for n in name_list]
 
     # 今日の日付（初期値）
     today = datetime.now().strftime('%Y-%m-%d')
+    today_obj = datetime.strptime(today, '%Y-%m-%d')
 
-    # 会社カレンダー＋祝日＋土曜で判定
-    is_holiday = holiday_checker.is_holiday(today)
+    # DB で会社カレンダーを検索
+    record = CompanyCalendar.query.filter_by(date=today).first()
+    if record:
+        if record.type == 'holiday':
+            is_holiday = True
+        elif record.type == 'workday':
+            is_holiday = False
+        elif record.type == 'paidleave':
+            is_holiday = True  # 有給を休日扱いにする場合
+        else:
+            is_holiday = False
+    else:
+        # DB にない場合は土日か祝日判定
+        if today_obj.weekday() >= 5:  # 土日
+            is_holiday = True
+        elif jpholiday.is_holiday(today_obj):
+            is_holiday = True
+        else:
+            is_holiday = False
+       
 
     return render_template('index.html',
                            name_list=name_list,
@@ -268,6 +341,7 @@ def edit_report(id):
         report.partner = request.form['partner']
         report.overtime_before = int(float(request.form['overtime_before']) * 60)
         report.overtime_after = int(float(request.form['overtime_after']) *60)
+        report.paid_leave_minutes = int(float(request.form['paid_leave_minutes'] or 0) * 60) 
 
         if report.is_holiday_work:
             # 休日出勤の場合
@@ -323,7 +397,24 @@ def report_chart():
         daily_totals[key] += work_time
         monthly_total += work_time
 
-        holiday_info[key] = report.is_holiday_work or holiday_checker.is_holiday(report.date)
+        # 休日判定
+    date_obj = datetime.strptime(report.date, '%Y-%m-%d')
+    # DBの会社カレンダーを確認
+    record = CompanyCalendar.query.filter_by(date=report.date).first()
+    if record:
+        if record.type == 'holiday':
+            is_holiday = True
+        elif record.type == 'workday':
+            is_holiday = False
+        elif record.type == 'paidleave':
+            is_holiday = True
+        else:
+            is_holiday = False
+    else:
+        # DBにない場合は土日・祝日で判定
+        is_holiday = date_obj.weekday() >= 5 or jpholiday.is_holiday(date_obj) is not None
+
+    holiday_info[key] = report.is_holiday_work or is_holiday
     
     # 月の合計を求める
     total_minutes = None

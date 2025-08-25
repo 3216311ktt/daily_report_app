@@ -78,12 +78,14 @@
     <h3 id="modal-date"></h3>
     <label>種別:</label>
     <select id="modal-type">
-      <option value="holiday">holiday</option>
-      <option value="workday">workday</option>
+      <option value="holiday">休日</option>
+      <option value="workday">出勤</option>
+      <option value="paidleave">有給</option>
     </select><br><br>
     <label>説明:</label>
     <input type="text" id="modal-description"><br><br>
     <button onclick="saveEvent()">保存</button>
+    <button onclick="deleteEvent()">削除</button>
     <button onclick="closeModal()">キャンセル</button>
   </div>
 
@@ -118,29 +120,39 @@
       });
     }
 
+    function deleteEvent() {
+      if (!confirm('本当に削除しますか？')) return;
+
+      axios.post('/api/delete', { date: selectedDate })
+        .then(() => {
+          closeModal();
+          location.reload();
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
       const calendarEl = document.getElementById('calendar');
-      console.log('calendarEl:', calendarEl);
+      //console.log('calendarEl:', calendarEl);
 
       const calendar = new FullCalendar.Calendar(calendarEl, {
         locale: 'ja',
         initialView: 'dayGridMonth',
         events: '/api/calendar',
-          eventDidMount: function(info) {
-        console.log('イベント:', info.event);
+        eventDidMount: function(info) {
+          console.log('イベント:', info.event);
       },
         dateClick: function(info) {
           openModal(info.dateStr);
         }
       });
       calendar.render();
-      console.log('FullCalendar initialized!');
-    });
+    
 
     // ページ読み込み時に年の選択肢をセットする
-    window.addEventListener('DOMContentLoaded', () =>{
+    //window.addEventListener('DOMContentLoaded', () =>{
       const yearSelect = document.getElementById('list-year-select');
       const currentYear = new Date().getFullYear();
+      yearSelect.innerHTML = '';
       for (let y = currentYear - 5; y <= currentYear + 5; y++) {
         const option = document.createElement('option');
         option.value = y;
@@ -188,6 +200,9 @@
           }else if (event.color === '#0a0') {
             type = 'workday';
             typeColor = '#0a0';
+          } else if (event.color === '#00bfff') {
+            type = 'paidleave';
+            typeColor = '#00bfff';
           }else if (event.color === '#ff9999') {
             type = '祝日';
             typeColor = '#ff9999';

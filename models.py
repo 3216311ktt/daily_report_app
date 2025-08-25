@@ -36,3 +36,12 @@ class DailyReport(db.Model):
     manager_checked = db.Column(db.Boolean, default=False)
     director_checked = db.Column(db.Boolean, default=False)
     president_checked = db.Column(db.Boolean, default=False)
+
+
+class CompanyCalendar(db.Model):
+    __tablename__ = 'company_calendar'
+
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.String(10), nullable=False)  # 日付（例: "2025-06-16"）
+    description = db.Column(db.String(200))  # 説明
+    type = db.Column(db.String(50))  # タイプ（例: "holiday", "event"）

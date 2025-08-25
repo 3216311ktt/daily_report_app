@@ -26,9 +26,10 @@
         件名: <input type="text" name="title" value="{{ report.title }}"><br>
         作業内容: <input type="text" name="task" value="{{ report.task }}"><br>
         同行者: <input type="text" name="partner" value="{{ report.partner }}"><br>
-        前残業: <input type="number" step="0.1" name="overtime_before" value="{{ (report.overtime_before / 60) | round(2) }}"><br>
-        通常時間: <input type="number" step="0.1" name="work_minutes" value="{{ (report.work_minutes / 60) | round(2) }}"><br>
-        後残業: <input type="number" step="0.1" name="overtime_after" value="{{ (report.overtime_after / 60) | round(2) }}"><br>
+        前残業: <input type="number" step="0.5" name="overtime_before" value="{{ (report.overtime_before / 60) | round(2) }}"><br>
+        通常時間: <input type="number" step="0.5" name="work_minutes" value="{{ (report.work_minutes / 60) | round(2) }}"><br>
+        後残業: <input type="number" step="0.5" name="overtime_after" value="{{ (report.overtime_after / 60) | round(2) }}"><br>
+        有給: <input type="number" step="0.5" name="paid_leave_minutes" value="{{ (report.paid_leave_minutes / 60) }}"><br>
         <button type="submit">更新</button>
         <a href="{{ url_for('view_reports') }}">戻る</a>
     </form>
