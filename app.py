@@ -100,9 +100,15 @@ def api_calendar():
         else:
             # 年ありはそのまま
             try:
-                datetime.strptime(date_str, '%Y-%m-%d')
+                dt = datetime.strptime(date_str, '%Y-%m-%d')
             except ValueError:
                 continue
+
+            # 年指定があるときは、その年以外はスキップ
+            if selected_year and dt.year != selected_year:
+                continue
+
+
             events.append({
                     "title": row.description,
                     "start": date_str,
@@ -398,23 +404,23 @@ def report_chart():
         monthly_total += work_time
 
         # 休日判定
-    date_obj = datetime.strptime(report.date, '%Y-%m-%d')
-    # DBの会社カレンダーを確認
-    record = CompanyCalendar.query.filter_by(date=report.date).first()
-    if record:
-        if record.type == 'holiday':
-            is_holiday = True
-        elif record.type == 'workday':
-            is_holiday = False
-        elif record.type == 'paidleave':
-            is_holiday = True
+        date_obj = datetime.strptime(report.date, '%Y-%m-%d')
+        # DBの会社カレンダーを確認
+        record = CompanyCalendar.query.filter_by(date=report.date).first()
+        if record:
+            if record.type == 'holiday':
+                is_holiday = True
+            elif record.type == 'workday':
+                is_holiday = False
+            elif record.type == 'paidleave':
+                is_holiday = True
+            else:
+                is_holiday = False
         else:
-            is_holiday = False
-    else:
-        # DBにない場合は土日・祝日で判定
-        is_holiday = date_obj.weekday() >= 5 or jpholiday.is_holiday(date_obj) is not None
+            # DBにない場合は土日・祝日で判定
+            is_holiday = date_obj.weekday() >= 5 or jpholiday.is_holiday(date_obj) is not None
 
-    holiday_info[key] = report.is_holiday_work or is_holiday
+        holiday_info[key] = report.is_holiday_work or is_holiday
     
     # 月の合計を求める
     total_minutes = None
