@@ -15,6 +15,10 @@
     <input type="checkbox" id="isHolidayWork" {% if is_holiday %}checked{% endif %}>
      休日出勤
   </label>
+  <label style="color: rgb(0, 128, 255)">
+    <input type="checkbox" id="isForcedPaidleave" {% if is_forced_paidleave %}checked{% endif %} disabled>
+     指定有給日
+  </label>
   <br>
 <tr>
   <label>名前</label>
@@ -318,35 +322,70 @@
   });
 }
 
+  
+//   // 休日判定のための関数
+//   function checkIfHoliday() {
+//   const date = document.getElementById('dateInput').value;
+//   if (!date) return;
 
+//   fetch(`/api/check_holiday?date=${date}`)
+//     .then(response => response.json())
+//     .then(data => {
+//       const isHoliday = data.is_holiday;
+//       const holidayCheckbox = document.getElementById('isHolidayWork');
 
-  // 休日判定のための関数
-  function checkIfHoliday() {
-  const date = document.getElementById('dateInput').value;
-  if (!date) return;
+//       // 休日出勤チェックボックスの状態を更新
+//       holidayCheckbox.checked = isHoliday;
+//       console.log(`この日は休日？: ${isHoliday}`);
 
-  fetch(`/api/check_holiday?date=${date}`)
-    .then(response => response.json())
-    .then(data => {
-      const isHoliday = data.is_holiday;
-      const holidayCheckbox = document.getElementById('isHolidayWork');
+//       togglePaidLeaveVisibility(isHoliday);
+//     })
+//     .catch(err => console.error(err));
+// }
+//   // 初期化
+//   document.addEventListener('DOMContentLoaded', () => {
+//     checkIfHoliday();
 
-      // 休日出勤チェックボックスの状態を更新
-      holidayCheckbox.checked = isHoliday;
-      console.log(`この日は休日？: ${isHoliday}`);
+//   });
 
-      togglePaidLeaveVisibility(isHoliday);
-    })
-    .catch(err => console.error(err));
-}
-  // 初期化
-  document.addEventListener('DOMContentLoaded', () => {
-    checkIfHoliday();
+document.addEventListener('DOMContentLoaded', () => {
+  const datePicker = document.getElementById('dateInput');
+  const forcedCheckbox = document.getElementById('isForcedPaidleave');
+  const holidayCheckbox = document.getElementById('isHolidayWork');
 
-     // 休日勤務チェックが手動で切り替わった時にも有休欄を更新
-    document.getElementById('isHolidayWork').addEventListener('change', function () {
-    togglePaidLeaveVisibility(this.checked);
+  // 指定有給＆休日出勤の状態を更新
+  async function updateDateStatus(date) {
+    if (!date) return;
+    try {
+      const res = await fetch(`/api/check_holiday?date=${date}`);
+      const data = await res.json();
+
+      // 指定有給
+      forcedCheckbox.checked = data.is_forced_paidleave;
+
+      // 休日出勤
+      holidayCheckbox.checked = data.is_holiday;
+
+      // 有給入力欄の表示制御
+      togglePaidLeaveVisibility(data.is_holiday);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  // 初期表示
+  updateDateStatus(datePicker.value);
+
+  // 日付変更時
+  datePicker.addEventListener('change', (e) => {
+    const selectedDate = e.target.value;
+    updateDateStatus(selectedDate);
   });
+
+    // 休日勤務チェックが手動で切り替わった時にも有休欄を更新
+    holidayCheckbox.addEventListener('change', function () {
+      togglePaidLeaveVisibility(this.checked);
+    });
 });
 
   // 件名数セレクタの変更イベント

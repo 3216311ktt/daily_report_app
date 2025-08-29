@@ -11,8 +11,6 @@ from holiday_manager import HolidayManager
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 
-# holiday_checker = HolidayManager('static/company_calendar.csv')
-
 # 安定するpath
 # このファイルがあるディレクトリ（app.py）
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -180,8 +178,6 @@ def api_check_holiday():
     if not date_str:
         return jsonify({'error': 'date is required'}), 400
 
-    # is_holiday = holiday_checker.is_holiday(date_str)
-    # return jsonify({'date': date_str, 'is_holiday': is_holiday})
     try:
         date_obj = datetime.strptime(date_str, '%Y-%m-%d')
     except ValueError:
@@ -189,13 +185,15 @@ def api_check_holiday():
 
     # DBで会社カレンダーを確認
     record = CompanyCalendar.query.filter_by(date=date_str).first()
+    is_forced_paidleave = record and record.type == 'paidleave'
     if record:
         if record.type == 'holiday':
             is_holiday = True
         elif record.type == 'workday':
             is_holiday = False
         elif record.type == 'paidleave':
-            is_holiday = True  # 必要に応じて変更
+            is_holiday = False # 必要に応じて変更
+            is_forced_paidleave = True
         else:
             is_holiday = False
     else:
@@ -207,7 +205,7 @@ def api_check_holiday():
         else:
             is_holiday = False
 
-    return jsonify({'date': date_str, 'is_holiday': is_holiday})
+    return jsonify({'date': date_str, 'is_holiday': is_holiday, 'is_forced_paidleave': is_forced_paidleave})
 
 
 @app.route('/')
@@ -222,13 +220,15 @@ def index():
 
     # DB で会社カレンダーを検索
     record = CompanyCalendar.query.filter_by(date=today).first()
+    is_forced_paidleave = record and record.type == 'paidleave'
     if record:
         if record.type == 'holiday':
             is_holiday = True
         elif record.type == 'workday':
             is_holiday = False
         elif record.type == 'paidleave':
-            is_holiday = True  # 有給を休日扱いにする場合
+            is_holiday = False  # 有給を休日扱いにする場合
+            is_forced_paidleave = True
         else:
             is_holiday = False
     else:
@@ -244,7 +244,8 @@ def index():
     return render_template('index.html',
                            name_list=name_list,
                            today=today,
-                           is_holiday=is_holiday)
+                           is_holiday=is_holiday,
+                           is_forced_paidleave=is_forced_paidleave)
 
 @app.route('/submit', methods=['POST'])
 def submit():
@@ -253,6 +254,10 @@ def submit():
     name = data.get('name', '未入力')
     date = data.get('date', datetime.now().strftime('%Y-%m-%d'))
     is_holiday_work = data.get('is_holiday_work', False)
+
+    # この日が「指定有給日」かどうかを判定   
+    calendar_entry = CompanyCalendar.query.filter_by(date=date).first()
+    forced_paidleave = calendar_entry and calendar_entry.type == 'paidleave'
 
     for entry in reports:
         work_minutes = entry.get('work_minutes') or 0
@@ -263,6 +268,11 @@ def submit():
         entry_total = entry.get('total_minutes') or 0
         if entry_total != calc_total:
             entry_total = calc_total
+
+        # 既存レポートがある場合は削除して上書き
+        existing = DailyReport.query.filter_by(name=name, date=date, title=entry.get('title')).first()
+        if existing:
+            db.session.delete(existing)
 
         # 共通部分
         base_data = dict(
@@ -293,6 +303,13 @@ def submit():
                 paid_leave_minutes=0
             )
         else:
+            # 指定有給日の場合は差分を自動計算
+            if forced_paidleave:
+                worked = work_minutes + overtime_before + overtime_after
+                paid_leave = max(0, 480 - worked)
+            else:
+                paid_leave = entry.get('paid_leave_minutes', 0)
+
             base_data.update(
                 start_hour=entry.get('start_hour'),
                 start_minute=entry.get('start_minute'),
@@ -300,7 +317,7 @@ def submit():
                 end_minute=entry.get('end_minute'),
                 work_minutes=entry.get('work_minutes', 0),
                 total_minutes=entry_total,
-                paid_leave_minutes=entry.get('paid_leave_minutes', 0)
+                paid_leave_minutes=paid_leave
         )
         
         report = DailyReport(**base_data)   
