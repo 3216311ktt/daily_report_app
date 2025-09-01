@@ -429,7 +429,7 @@ def report_chart():
     reports = query.order_by(DailyReport.date.desc(), DailyReport.name).all()
 
     # 日別合計
-    daily_totals = defaultdict(default_factory=int)
+    daily_totals = defaultdict(int)
     monthly_total = 0
     holiday_info = {}
 
