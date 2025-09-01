@@ -417,8 +417,8 @@ def report_chart():
     name = request.args.get('name', '')
     date = request.args.get('date', '')
     today = dt_date.today().isoformat()
-    
-    
+    total_minutes = 0  # 初期値を定義
+
     query =DailyReport.query
 
     if name:
@@ -429,7 +429,7 @@ def report_chart():
     reports = query.order_by(DailyReport.date.desc(), DailyReport.name).all()
 
     # 日別合計
-    daily_totals = defaultdict(int)
+    daily_totals = defaultdict(default_factory=int)
     monthly_total = 0
     holiday_info = {}
 
@@ -466,7 +466,6 @@ def report_chart():
                 holiday_info[key] = None # 平日
     
     # 月の合計を求める
-    total_minutes = None
     if name and date:
         month_str = date[:7]
         total_minutes = db.session.query(func.sum(DailyReport.total_minutes))\
@@ -490,6 +489,7 @@ def report_chart():
                            name_list=name_list,
                            holiday_info=holiday_info,
                            monthly_paid_leave=monthly_paid_leave,
+                           total_minutes=total_minutes
                            )
 
 # 役職ログインAPI
