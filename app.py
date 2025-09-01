@@ -174,6 +174,20 @@ def api_update():
 # 休日自動判定
 @app.route('/api/check_holiday')
 def api_check_holiday():
+    """
+    指定した日付が休日かどうかを判定するAPI。
+
+    Args:
+        date (str): 'YYYY-MM-DD'形式の日付をクエリパラメータで指定。
+
+    Returns:
+        JSONオブジェクト:
+            {
+                "date": 指定日付,
+                "is_holiday": 休日ならTrue, そうでなければFalse,
+                "is_forced_paidleave": 会社カレンダーで指定有給日ならTrue, そうでなければFalse
+            }
+    """
     date_str = request.args.get('date')
     if not date_str:
         return jsonify({'error': 'date is required'}), 400
@@ -182,17 +196,26 @@ def api_check_holiday():
         date_obj = datetime.strptime(date_str, '%Y-%m-%d')
     except ValueError:
         return jsonify({'error': 'invalid date format'}), 400
+    
+    # フロントから来た日付の MM-DD を抽出
+    mmdd = date_obj.strftime('%m-%d')
 
     # DBで会社カレンダーを確認
-    record = CompanyCalendar.query.filter_by(date=date_str).first()
-    is_forced_paidleave = record and record.type == 'paidleave'
+    record = CompanyCalendar.query.filter(
+        (CompanyCalendar.date==date_str) | (CompanyCalendar.date==mmdd)
+    ).first()
+
+    is_forced_paidleave = record and record.type.strip().lower() == 'paidleave'
+
     if record:
-        if record.type == 'holiday':
+        rtype = record.type.strip().lower()
+        if rtype == 'holiday':
             is_holiday = True
-        elif record.type == 'workday':
+        elif rtype == 'workday':
             is_holiday = False
-        elif record.type == 'paidleave':
-            is_holiday = False # 必要に応じて変更
+        elif rtype == 'paidleave':
+            # 業務ロジック: 有給は休日扱いしない（必要ならTrueに変更）
+            is_holiday = False
             is_forced_paidleave = True
         else:
             is_holiday = False
@@ -411,6 +434,7 @@ def report_chart():
     holiday_info = {}
 
     for report in reports:
+        # 勤務時間の取得
         if report.is_holiday_work:
             work_time = report.holiday_total_minutes or 0
         else:
@@ -424,20 +448,22 @@ def report_chart():
         date_obj = datetime.strptime(report.date, '%Y-%m-%d')
         # DBの会社カレンダーを確認
         record = CompanyCalendar.query.filter_by(date=report.date).first()
-        if record:
-            if record.type == 'holiday':
-                is_holiday = True
-            elif record.type == 'workday':
-                is_holiday = False
-            elif record.type == 'paidleave':
-                is_holiday = True
-            else:
-                is_holiday = False
+
+        if report.is_holiday_work:
+            # 休日出勤
+            holiday_info[key] = 'holiday' # 休日出勤
+        elif record and record.type == 'paidleave':
+            # 指定有給日
+            holiday_info[key] = 'paidleave' # 指定有給日
+        elif record and record.type == 'holiday':
+            # 会社休日
+            holiday_info[key] = 'holiday' # 会社休日
         else:
             # DBにない場合は土日・祝日で判定
-            is_holiday = date_obj.weekday() >= 5 or jpholiday.is_holiday(date_obj) is not None
-
-        holiday_info[key] = report.is_holiday_work or is_holiday
+            if date_obj.weekday() >= 5 or jpholiday.is_holiday(date_obj):
+                holiday_info[key] = 'holiday' # 土日祝
+            else:
+                holiday_info[key] = None # 平日
     
     # 月の合計を求める
     total_minutes = None

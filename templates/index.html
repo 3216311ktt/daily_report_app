@@ -11,12 +11,12 @@
 
 
 <h2>📝 日報入力</h2>
-  <label style="color: rgb(251, 38, 0);">
+  <label id="holidayWorkLabel" style="color: rgb(251, 38, 0);">
     <input type="checkbox" id="isHolidayWork" {% if is_holiday %}checked{% endif %}>
      休日出勤
   </label>
-  <label style="color: rgb(0, 128, 255)">
-    <input type="checkbox" id="isForcedPaidleave" {% if is_forced_paidleave %}checked{% endif %} disabled>
+  <label id="forcedPaidLeaveLabel" style="color: rgb(0, 128, 255)">
+    <input type="checkbox" id="isForcedPaidleave" {% if is_forced_paidleave %}checked{% endif %}>
      指定有給日
   </label>
   <br>
@@ -365,6 +365,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // 休日出勤
       holidayCheckbox.checked = data.is_holiday;
+
+      // 休日出勤日のみチェックボックスを表示
+      const holidayWorkLabel = document.getElementById('holidayWorkLabel');
+      holidayWorkLabel.style.display = data.is_holiday ? 'inline-block' : 'none';
+
+      // 指定有給日のみチェックボックスを表示
+      const forcedPaidleaveCheckbox = document.getElementById('forcedPaidLeaveLabel');
+      forcedPaidleaveCheckbox.style.display = data.is_forced_paidleave ? 'inline-block' : 'none';
 
       // 有給入力欄の表示制御
       togglePaidLeaveVisibility(data.is_holiday);
