@@ -11,8 +11,6 @@ from holiday_manager import HolidayManager
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 
-# holiday_checker = HolidayManager('static/company_calendar.csv')
-
 # 安定するpath
 # このファイルがあるディレクトリ（app.py）
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -100,9 +98,15 @@ def api_calendar():
         else:
             # 年ありはそのまま
             try:
-                datetime.strptime(date_str, '%Y-%m-%d')
+                dt = datetime.strptime(date_str, '%Y-%m-%d')
             except ValueError:
                 continue
+
+            # 年指定があるときは、その年以外はスキップ
+            if selected_year and dt.year != selected_year:
+                continue
+
+
             events.append({
                     "title": row.description,
                     "start": date_str,
@@ -170,26 +174,49 @@ def api_update():
 # 休日自動判定
 @app.route('/api/check_holiday')
 def api_check_holiday():
+    """
+    指定した日付が休日かどうかを判定するAPI。
+
+    Args:
+        date (str): 'YYYY-MM-DD'形式の日付をクエリパラメータで指定。
+
+    Returns:
+        JSONオブジェクト:
+            {
+                "date": 指定日付,
+                "is_holiday": 休日ならTrue, そうでなければFalse,
+                "is_forced_paidleave": 会社カレンダーで指定有給日ならTrue, そうでなければFalse
+            }
+    """
     date_str = request.args.get('date')
     if not date_str:
         return jsonify({'error': 'date is required'}), 400
 
-    # is_holiday = holiday_checker.is_holiday(date_str)
-    # return jsonify({'date': date_str, 'is_holiday': is_holiday})
     try:
         date_obj = datetime.strptime(date_str, '%Y-%m-%d')
     except ValueError:
         return jsonify({'error': 'invalid date format'}), 400
+    
+    # フロントから来た日付の MM-DD を抽出
+    mmdd = date_obj.strftime('%m-%d')
 
     # DBで会社カレンダーを確認
-    record = CompanyCalendar.query.filter_by(date=date_str).first()
+    record = CompanyCalendar.query.filter(
+        (CompanyCalendar.date==date_str) | (CompanyCalendar.date==mmdd)
+    ).first()
+
+    is_forced_paidleave = record and record.type.strip().lower() == 'paidleave'
+
     if record:
-        if record.type == 'holiday':
+        rtype = record.type.strip().lower()
+        if rtype == 'holiday':
             is_holiday = True
-        elif record.type == 'workday':
+        elif rtype == 'workday':
             is_holiday = False
-        elif record.type == 'paidleave':
-            is_holiday = True  # 必要に応じて変更
+        elif rtype == 'paidleave':
+            # 業務ロジック: 有給は休日扱いしない（必要ならTrueに変更）
+            is_holiday = False
+            is_forced_paidleave = True
         else:
             is_holiday = False
     else:
@@ -201,7 +228,7 @@ def api_check_holiday():
         else:
             is_holiday = False
 
-    return jsonify({'date': date_str, 'is_holiday': is_holiday})
+    return jsonify({'date': date_str, 'is_holiday': is_holiday, 'is_forced_paidleave': is_forced_paidleave})
 
 
 @app.route('/')
@@ -216,13 +243,15 @@ def index():
 
     # DB で会社カレンダーを検索
     record = CompanyCalendar.query.filter_by(date=today).first()
+    is_forced_paidleave = record and record.type == 'paidleave'
     if record:
         if record.type == 'holiday':
             is_holiday = True
         elif record.type == 'workday':
             is_holiday = False
         elif record.type == 'paidleave':
-            is_holiday = True  # 有給を休日扱いにする場合
+            is_holiday = False  # 有給を休日扱いにする場合
+            is_forced_paidleave = True
         else:
             is_holiday = False
     else:
@@ -238,7 +267,8 @@ def index():
     return render_template('index.html',
                            name_list=name_list,
                            today=today,
-                           is_holiday=is_holiday)
+                           is_holiday=is_holiday,
+                           is_forced_paidleave=is_forced_paidleave)
 
 @app.route('/submit', methods=['POST'])
 def submit():
@@ -247,6 +277,10 @@ def submit():
     name = data.get('name', '未入力')
     date = data.get('date', datetime.now().strftime('%Y-%m-%d'))
     is_holiday_work = data.get('is_holiday_work', False)
+
+    # この日が「指定有給日」かどうかを判定   
+    calendar_entry = CompanyCalendar.query.filter_by(date=date).first()
+    forced_paidleave = calendar_entry and calendar_entry.type == 'paidleave'
 
     for entry in reports:
         work_minutes = entry.get('work_minutes') or 0
@@ -257,6 +291,11 @@ def submit():
         entry_total = entry.get('total_minutes') or 0
         if entry_total != calc_total:
             entry_total = calc_total
+
+        # 既存レポートがある場合は削除して上書き
+        existing = DailyReport.query.filter_by(name=name, date=date, title=entry.get('title')).first()
+        if existing:
+            db.session.delete(existing)
 
         # 共通部分
         base_data = dict(
@@ -287,6 +326,13 @@ def submit():
                 paid_leave_minutes=0
             )
         else:
+            # 指定有給日の場合は差分を自動計算
+            if forced_paidleave:
+                worked = work_minutes + overtime_before + overtime_after
+                paid_leave = max(0, 480 - worked)
+            else:
+                paid_leave = entry.get('paid_leave_minutes', 0)
+
             base_data.update(
                 start_hour=entry.get('start_hour'),
                 start_minute=entry.get('start_minute'),
@@ -294,7 +340,7 @@ def submit():
                 end_minute=entry.get('end_minute'),
                 work_minutes=entry.get('work_minutes', 0),
                 total_minutes=entry_total,
-                paid_leave_minutes=entry.get('paid_leave_minutes', 0)
+                paid_leave_minutes=paid_leave
         )
         
         report = DailyReport(**base_data)   
@@ -371,8 +417,8 @@ def report_chart():
     name = request.args.get('name', '')
     date = request.args.get('date', '')
     today = dt_date.today().isoformat()
-    
-    
+    total_minutes = 0  # 初期値を定義
+
     query =DailyReport.query
 
     if name:
@@ -388,6 +434,7 @@ def report_chart():
     holiday_info = {}
 
     for report in reports:
+        # 勤務時間の取得
         if report.is_holiday_work:
             work_time = report.holiday_total_minutes or 0
         else:
@@ -398,26 +445,27 @@ def report_chart():
         monthly_total += work_time
 
         # 休日判定
-    date_obj = datetime.strptime(report.date, '%Y-%m-%d')
-    # DBの会社カレンダーを確認
-    record = CompanyCalendar.query.filter_by(date=report.date).first()
-    if record:
-        if record.type == 'holiday':
-            is_holiday = True
-        elif record.type == 'workday':
-            is_holiday = False
-        elif record.type == 'paidleave':
-            is_holiday = True
-        else:
-            is_holiday = False
-    else:
-        # DBにない場合は土日・祝日で判定
-        is_holiday = date_obj.weekday() >= 5 or jpholiday.is_holiday(date_obj) is not None
+        date_obj = datetime.strptime(report.date, '%Y-%m-%d')
+        # DBの会社カレンダーを確認
+        record = CompanyCalendar.query.filter_by(date=report.date).first()
 
-    holiday_info[key] = report.is_holiday_work or is_holiday
+        if report.is_holiday_work:
+            # 休日出勤
+            holiday_info[key] = 'holiday' # 休日出勤
+        elif record and record.type == 'paidleave':
+            # 指定有給日
+            holiday_info[key] = 'paidleave' # 指定有給日
+        elif record and record.type == 'holiday':
+            # 会社休日
+            holiday_info[key] = 'holiday' # 会社休日
+        else:
+            # DBにない場合は土日・祝日で判定
+            if date_obj.weekday() >= 5 or jpholiday.is_holiday(date_obj):
+                holiday_info[key] = 'holiday' # 土日祝
+            else:
+                holiday_info[key] = None # 平日
     
     # 月の合計を求める
-    total_minutes = None
     if name and date:
         month_str = date[:7]
         total_minutes = db.session.query(func.sum(DailyReport.total_minutes))\
@@ -435,12 +483,13 @@ def report_chart():
     return render_template('report_chart.html',
                            reports=reports,
                            name=name,
-                           date=today,
+                           date=date,
                            daily_totals=daily_totals,
                            monthly_total=monthly_total,
                            name_list=name_list,
                            holiday_info=holiday_info,
                            monthly_paid_leave=monthly_paid_leave,
+                           total_minutes=total_minutes
                            )
 
 # 役職ログインAPI

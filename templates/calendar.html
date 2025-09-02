@@ -91,6 +91,7 @@
 
   <script>
     let selectedDate = '';
+    let calendar; // カレンダーインスタンスをグローバルに保持
     const modal = document.getElementById('modal');
 
     function openModal(dateStr) {
@@ -116,7 +117,10 @@
         description: description
       }).then(() => {
         closeModal();
-        location.reload();
+        calendar.refetchEvents(); // カレンダーを更新
+        if (document.getElementById('list-view').style.display === 'block') {
+          showList(); // 一覧表示も更新
+        }
       });
     }
 
@@ -126,15 +130,32 @@
       axios.post('/api/delete', { date: selectedDate })
         .then(() => {
           closeModal();
-          location.reload();
+          calendar.refetchEvents(); // カレンダーを更新
+          if (document.getElementById('list-view').style.display === 'block') {
+            showList(); // 一覧表示も更新
+          }
         });
     }
+    function updateHoliday() {
+      fetch('/api/update_holiday', {
+      method: 'post',
+      body: JSON.stringify({ date: selectedDate, isHoliday: isChecked }),
+      headers: { 'Content-Type': 'application/json' }
+     })
+     .then(res => res.json())
+     .then(data => {
+      console.log('更新完了:', data);
+      // イベント再読み込み
+      if (calendar) {
+        calendar.refetchEvents();
+      }  
+    });
+    }
+    
 
     document.addEventListener('DOMContentLoaded', function() {
       const calendarEl = document.getElementById('calendar');
-      //console.log('calendarEl:', calendarEl);
-
-      const calendar = new FullCalendar.Calendar(calendarEl, {
+      calendar = new FullCalendar.Calendar(calendarEl, {
         locale: 'ja',
         initialView: 'dayGridMonth',
         events: '/api/calendar',
@@ -149,7 +170,6 @@
     
 
     // ページ読み込み時に年の選択肢をセットする
-    //window.addEventListener('DOMContentLoaded', () =>{
       const yearSelect = document.getElementById('list-year-select');
       const currentYear = new Date().getFullYear();
       yearSelect.innerHTML = '';
@@ -200,7 +220,7 @@
           }else if (event.color === '#0a0') {
             type = 'workday';
             typeColor = '#0a0';
-          } else if (event.color === '#00bfff') {
+          }else if (event.color === '#00bfff') {
             type = 'paidleave';
             typeColor = '#00bfff';
           }else if (event.color === '#ff9999') {

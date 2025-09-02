@@ -75,8 +75,10 @@
         <div><span class="label">同行者:</span> {{ report.partner }}</div>
       {% endif %}
       {% set this_key = report.date ~ '_' ~ report.name %}
-      {% if holiday_info[this_key] %}
+      {% if holiday_info[this_key] == 'holiday' %}
         <div style="color: red; font-weight: bold;">※休日出勤</div>
+      {% elif holiday_info[this_key] == 'paidleave' %}
+        <div style="color: blue; font-weight: bold;">※指定有給日</div>
       {% endif %}
       {% if report.overtime_before %}
         <div><span class="label-overtime">前残業:</span>
