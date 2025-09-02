@@ -45,3 +45,10 @@ class CompanyCalendar(db.Model):
     date = db.Column(db.String(10), nullable=False)  # 日付（例: "2025-06-16"）
     description = db.Column(db.String(200))  # 説明
     type = db.Column(db.String(50))  # タイプ（例: "holiday", "event"）
+
+class User(db.Model):
+    __tablename__ = 'employees'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    department = db.Column(db.String(50), nullable=True)

@@ -22,7 +22,7 @@
   <br>
 <tr>
   <label>名前</label>
-  <select id="nameSelect" onchange="toggleNameInpit()">
+  <select id="nameSelect" onchange="handleNameChange()">
     <option value="">選択してください</option>
     {% for n in name_list %}
     <option value="{{ n }}">{{ n }}</option>
@@ -76,6 +76,37 @@
   const entryCountSelector = document.getElementById('entryCountSelector');
   
   let allEntries = [];
+
+  function toggleNameInput() {
+    const nameSelect = document.getElementById("nameSelect");
+    const customName = document.getElementById("customName");
+    if (nameSelect.value === "__other__") {
+      customName.style.display = "inline-block";
+    } else {
+      customName.style.display = "none";
+    }
+  }
+
+  function handleNameChange() {
+    const select = document.getElementById("nameSelect");
+    const selectedName = select.value;
+
+    // その他が選ばれたらテキスト入力欄を表示
+    toggleNameInput();
+
+    // 選んだ名前を　localStorage に保存
+    localStorage.setItem('selectedName', selectedName);
+  }
+
+  // ページ読み込み時に localStorage から名前を復元
+  window.addEventListener("DOMContentLoaded", () => {
+    const savedName = localStorage.getItem('selectedName');
+    if (savedName) {
+      const select = document.getElementById("nameSelect");
+      select.value = savedName;
+      toggleNameInput();
+    }
+  });
 
   // 変換用
   function timeToMinutes(str) {

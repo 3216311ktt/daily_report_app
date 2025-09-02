@@ -1,7 +1,7 @@
 import os
 import jpholiday
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session
-from models import db, DailyReport, CompanyCalendar
+from models import db, DailyReport, CompanyCalendar, User
 from datetime import datetime, timedelta
 from collections import defaultdict
 from operator import attrgetter
@@ -234,7 +234,7 @@ def api_check_holiday():
 @app.route('/')
 def index():
    # データベースから名前の一覧を取得
-    name_list = db.session.query(DailyReport.name).distinct().order_by(DailyReport.name).all()
+    name_list = db.session.query(User.name).filter_by(department='技術').all()
     name_list = [n[0] for n in name_list]
 
     # 今日の日付（初期値）
