@@ -483,7 +483,7 @@ def report_chart():
     return render_template('report_chart.html',
                            reports=reports,
                            name=name,
-                           date=today,
+                           date=date,
                            daily_totals=daily_totals,
                            monthly_total=monthly_total,
                            name_list=name_list,
