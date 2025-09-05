@@ -1,12 +1,12 @@
 import os
 import jpholiday
+from monthly_report_util import get_monthly_report
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 from models import db, DailyReport, CompanyCalendar, User
-from datetime import datetime, timedelta
 from collections import defaultdict
 from operator import attrgetter
 from sqlalchemy import func
-from datetime import datetime, date as dt_date
+from datetime import datetime, timedelta, date as dt_date
 from holiday_manager import HolidayManager
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -136,7 +136,7 @@ def api_calendar():
 @app.route('/api/delete',methods=['POST'])
 def api_delete():
     data = request.json
-    date = data.get('date').strip()
+    date = data.get('date').strip() # type: ignore
 
    # DBから検索
     record = CompanyCalendar.query.filter_by(date=date).first()
@@ -154,9 +154,9 @@ def api_delete():
 @app.route('/api/update', methods=['POST'])
 def api_update():
     data = request.json
-    date = data.get('date').strip()
-    description = data.get('description').strip()
-    day_type = data.get('type').strip()
+    date = data.get('date').strip() # type: ignore
+    description = data.get('description').strip() # type: ignore
+    day_type = data.get('type').strip() # type: ignore
 
      # DBから検索
     record = CompanyCalendar.query.filter_by(date=date).first()
@@ -164,7 +164,7 @@ def api_update():
         record.description = description
         record.type = day_type
     else:
-        record = CompanyCalendar(date=date, description=description, type=day_type)
+        record = CompanyCalendar(date=date, description=description, type=day_type) # type: ignore
         db.session.add(record)
 
     db.session.commit()
@@ -273,10 +273,10 @@ def index():
 @app.route('/submit', methods=['POST'])
 def submit():
     data = request.json
-    reports = data.get('reports', [])
-    name = data.get('name', '未入力')
-    date = data.get('date', datetime.now().strftime('%Y-%m-%d'))
-    is_holiday_work = data.get('is_holiday_work', False)
+    reports = data.get('reports', []) # type: ignore
+    name = data.get('name', '未入力') # type: ignore
+    date = data.get('date', datetime.now().strftime('%Y-%m-%d')) # type: ignore
+    is_holiday_work = data.get('is_holiday_work', False) # type: ignore
 
     # この日が「指定有給日」かどうかを判定   
     calendar_entry = CompanyCalendar.query.filter_by(date=date).first()
@@ -544,53 +544,50 @@ def check_approval():
     else:
         return jsonify({'success': False, 'message': 'レポートが見つかりません'})
     
+
+    
 # 月報用ルート
 @app.route('/monthly_report')
 def monthly_report():
-    # name = request.args.get('name')
-    # # month = request.args.get('month')
-    # reports = DailyReport.query.filter(
-    #     DailyReport.name == name,
-    #     # DailyReport.date.startswith(month)
-    # ).all()
+    # クエリパラメータから名前と月を取得
+    name = request.args.get('name')
+    month_start = request.args.get('month')  # 'YYYY-MM' 形式
 
-    # # 集計ロジック
-    # grouped = ...
-
-    # return render_template('monthly_report.html',
-    #                        name=name,
-    #                     #    month=month,
-    #                        reports=reports,
-    #                        grouped=grouped)
-    performance_rate = round((258850 / 1091200) * 100, 2)
+    if not name or not month_start:
+        return "名前と月を指定してください", 400
+    
+    # 集計関数を呼び出す
+    report_data = get_monthly_report(name, month_start)
+    if not report_data:
+        return "指定された条件のレポートが見つかりません", 404
+      
+    
+    # 月報テンプレートに渡す
     context = {
-        "name": "田中",
-        "month": "2025-07",
-        "basic_time": "22 日",
+        "name": name,
+        "month": month_start,
+        "basic_time": f"{report_data['basic_time_days']} 日",
         "overtime_a": "2.5 H",
         "overtime_b": "0 H",
         "holiday_work": "8.5 H",
-        "total_hours": 179,  # 総合計時間
+        "total_hours": report_data["total_hours"],
         "paid_leave": "0 日",
         "time_diff": "-8 H",
         "late_early": "0 H",
-        "target_amount": 1091200,
-        "actual_amount": 258850,  # 総合計金額
-        "performance_rate": performance_rate,
-        "main_tasks": [
-            {"project_name": "東山中高", "description": "弱電迂回工事 / 水野", "hours": 23, "amount": 0},
-        ],
-        "main_total_hours": 72,
-        "main_total_amount": 0,
-        "other_tasks": [
-            {"category": "社内", "description": "プログラミング学習 他", "hours": 56, "amount": 0},
-            {"category": "電設", "description": "枚方長尾谷NKビル 他", "hours": 17, "amount": 18600},
-        ],
-        "other_total_hours": 73,
-        "other_total_amount": 104850,
-        "previous_amount": 155000,
+        "target_amount": 0,
+        "actual_amount": report_data["total_amount"],
+        "performance_rate": 0,
+        "main_tasks": report_data["main_tasks"],
+        "main_total_hours": report_data["main_total_hours"],
+        "main_total_amount": report_data["main_total_amount"],
+        "other_tasks": report_data["other_tasks"],
+        "other_total_hours": report_data["other_total_hours"],
+        "other_total_amount": report_data["other_total_amount"],
+        "previous_amount": 0,
     }
-    return render_template("monthly_report.html", **context)
+
+    return render_template('monthly_report.html', **context)
+
 
 if __name__ == '__main__':
     with app.app_context():
