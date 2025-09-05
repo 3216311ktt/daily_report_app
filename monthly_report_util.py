@@ -116,6 +116,63 @@ def get_monthly_report(name: str, year_month: str, selected_main_titles=None):
         workdays.append(d)
     basic_time_days = len(workdays)
 
+    # 残業・休日・有給・欠勤の計算
+    overtime_a = 0
+    overtime_b = 0
+    holiday_work = 0
+    late_early = 0
+
+    daily_hours_required = 8 
+    scheduled_start = 8 * 60 + 30
+    scheduled_end   = 17 * 60 + 30
+
+    for r in reports:
+        # 前残業はすべてA
+        overtime_a += (r.overtime_before or 0) / 60
+
+        # 後残業をAとBに分割
+        if r.end_hour is not None and r.end_minute is not None:
+            end_minutes = r.end_hour * 60 + r.end_minute
+            after = r.overtime_after or 0
+
+            if end_minutes <= 22 * 60:
+                # 22:00 以前に終了　→　全部　A
+                overtime_a += after / 60
+            else:
+                # 22:00 を超えている場合
+                # 22:00 までの分は A, それ以降は B
+                after_a = max(0, (22 * 60) - scheduled_end)
+                overtime_a += min(after, after_a) / 60
+                overtime_b += max(0, after - after_a) / 60
+        else:
+            # 終了時間がない場合は全部　A　扱い
+            overtime_a += (r.overtime_after or 0) / 60
+
+        # 休日出勤
+        if r.is_holiday_work:
+            holiday_work += (r.holiday_total_minutes or 0) / 60
+
+
+        # 遅刻・早退
+        if r.start_hour is not None and r.start_minute is not None:
+            start_minutes = r.start_hour * 60 + r.start_minute
+            if start_minutes > scheduled_start:
+                late_early += (start_minutes - scheduled_start) /60
+
+        if r.end_hour is not None and r.end_minute is not None:
+            end_minutes = r.end_hour * 60 + r.end_minute
+            if end_minutes < scheduled_end:
+                late_early += (scheduled_end - end_minutes) / 60
+
+    # 有給
+    paid_leave_minutes = sum(r.paid_leave_minutes or 0 for r in reports)
+    # 時間に直す
+    paid_leave_hours = round(paid_leave_minutes / 60, 1)
+
+    # 所定労働時間との差
+    expected_hours = basic_time_days * daily_hours_required
+    time_diff = total_hours - expected_hours
+
     return {
         "period_start": f"{start_date} ~ {end_date}",
         "basic_time_days": basic_time_days,
@@ -126,5 +183,11 @@ def get_monthly_report(name: str, year_month: str, selected_main_titles=None):
         "other_total_hours": other_total_hours,
         "other_total_amount": other_total_amount,
         "total_hours": total_hours,
-        "total_amount": total_amount
+        "total_amount": total_amount,
+        "overtime_a": round(overtime_a, 2),
+        "overtime_b": round(overtime_b, 2),
+        "holiday_work": round(holiday_work, 2),
+        "paid_leave": paid_leave_hours,
+        "time_diff": round(time_diff, 2),
+        "late_early": round(late_early, 2)
     }
