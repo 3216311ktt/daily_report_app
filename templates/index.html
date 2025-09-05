@@ -522,7 +522,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 件名ごとに合計時間反映
     entryData.forEach(d => {
-      const totalEntryMinutes = d.workMinutes + d.overtimeBeforeMinutes + d.overtimeAfterMinutes;
+      const totalEntryMinutes = d.workMinutes + d.overtimeBeforeMinutes + d.overtimeAfterMinutes + d.overtimeBminutes;
       const totalEntryOvertime = d.overtimeBeforeMinutes + d.overtimeAfterMinutes;
 
       d.entry.output.textContent = `選択時間: ${(totalEntryMinutes / 60).toFixed(1)} 時間 (残業: ${(totalEntryOvertime / 60).toFixed(1)} 時間)` ;
@@ -541,14 +541,14 @@ document.addEventListener('DOMContentLoaded', () => {
   let outsideClickListener = null; // グローバルに参照を保持
 
   // モーダル
-  function showTimeModal(targetInput, type, entries = []) {
+  function showTimeModal(targetInput, type, entries = [], isB = false) {
   const modal = document.getElementById('timeModal');
   const overlay = document.getElementById('modalOverlay');
   const container = document.getElementById('timeOptionsContainer');
   const clearButton = document.getElementById('clearTimeModal');
 
   // 前回のイベントリスナーを消去
-  if (outsideClickListener) {
+  if (!isB && outsideClickListener) {
     document.removeEventListener('click', outsideClickListener);
     outsideClickListener = null;
   }
@@ -559,7 +559,8 @@ document.addEventListener('DOMContentLoaded', () => {
     before: [{ start: 0 * 60, end: 4 * 60 },
              { start: 8 * 60, end: 23 * 60 + 31 }
     ],
-    after: [{ start: 4 * 60, end: 19 * 60 }]
+    after: [{ start: 4 * 60, end: 19 * 60}, { start: 22 * 60 + 30, end: 4 * 60}],
+    b_after: [{ start: 4 * 60, end: 22 * 60 + 30 }]
   };
 
   const excludedTimes = excludedTimesMap[type] || [];
@@ -621,19 +622,52 @@ document.addEventListener('DOMContentLoaded', () => {
     div.addEventListener('click', () => {
       targetInput.value = timeStr;  // 入力欄には hh:mm で表示
 
-      // overtimeAfter の場合は overtimeEnd として保存
+      // A残業で22:00を選んだ場合のみ　B残業欄生成
       if (type === 'after') {
-        const index = allEntries.findIndex(e => e.overtimeAfter === targetInput);
-        if (index !== -1) {
-          allEntries[index].overtimeEnd = timeStr;
-        }
+        const entryIndex = targetInput.dataset.index || 0;
+
+        // 22:00以外なら既存のB残業欄を削除
+        if (timeStr !== "22:00") {
+            const bInput = document.getElementById(`overtimeB-${entryIndex}`);
+            if (bInput) bInput.remove();
+          }
+
+          if (timeStr === "22:00" && !document.getElementById(`overtimeB-${entryIndex}`)) {
+            const bInput = document.createElement('input');
+            bInput.type = "text";
+            bInput.id = `overtimeB-${entryIndex}`;
+            bInput.dataset.index = entryIndex;
+            bInput.placeholder = "B残業時刻";
+
+            // タイムラインに干渉させない絶対配置
+            const rect = targetInput.getBoundingClientRect();
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+            bInput.style.position = 'absolute';
+            bInput.style.top = (rect.bottom + scrollTop + 5) + 'px';
+            bInput.style.left = (rect.left + scrollLeft) + 'px';
+            bInput.style.width = "80px";
+            bInput.style.fontSize = "0.8em";
+            bInput.style.padding = "2px 4px";
+            bInput.style.zIndex = 1000;
+
+            document.body.appendChild(bInput);
+      
+
+        // B残業用モーダル
+        bInput.addEventListener('focus', () => {
+          showTimeModal(bInput, 'b_after', entries, true);
+        });
+      }
+            
       }
 
       updateAllTotals();
 
-      
-      document.removeEventListener('click', outsideClickListener);
-      closeModal();
+      // B残業モードならcloseModal は呼ばない
+      if (!isB) {
+        closeModal();
+      }
     });
 
     container.appendChild(div);
@@ -697,9 +731,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // PCのみ外側クリックでも閉じる
   if (window.innerWidth > 768) {
-    outsideClickHandler = function (e) {
-      if (!modal.contains(e.target) && !targetInput.contains(e.target)) {
-        closeModal();
+    if (!isB) {
+      outsideClickHandler = function (e) {
+        if (!modal.contains(e.target) && !targetInput.contains(e.target)) {
+          closeModal();
+      }
       }
     };
 
@@ -712,15 +748,20 @@ document.addEventListener('DOMContentLoaded', () => {
     targetInput.value = '';
 
     // overtimeEEnd もクリア
-    if (type === 'after') {
+    if (type === 'after' && !isB) {
       const index = allEntries.findIndex(e => e.overtimeAfter === targetInput);
       if (index !== -1) {
         allEntries[index].overtimeEnd = null;
+
+        // B残業削除
+        const entryIndex = targetInput.dataset.index;
+        const bInput = document.getElementById(`overtimeB-${entryIndex}`);
+        if (bInput) bInput.remove();
       }
     }
     updateAllTotals();
 
-    closeModal();
+    if (!isB) closeModal();
     
   }; 
 }

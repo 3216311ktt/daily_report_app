@@ -127,26 +127,12 @@ def get_monthly_report(name: str, year_month: str, selected_main_titles=None):
     scheduled_end   = 17 * 60 + 30
 
     for r in reports:
-        # 前残業はすべてA
-        overtime_a += (r.overtime_before or 0) / 60
+        # 前・後残業
+        overtime_a += (r.overtime_before + r.overtime_after or 0) / 60
 
-        # 後残業をAとBに分割
-        if r.end_hour is not None and r.end_minute is not None:
-            end_minutes = r.end_hour * 60 + r.end_minute
-            after = r.overtime_after or 0
-
-            if end_minutes <= 22 * 60:
-                # 22:00 以前に終了　→　全部　A
-                overtime_a += after / 60
-            else:
-                # 22:00 を超えている場合
-                # 22:00 までの分は A, それ以降は B
-                after_a = max(0, (22 * 60) - scheduled_end)
-                overtime_a += min(after, after_a) / 60
-                overtime_b += max(0, after - after_a) / 60
-        else:
-            # 終了時間がない場合は全部　A　扱い
-            overtime_a += (r.overtime_after or 0) / 60
+        # B残業
+        overtime_b += (r.b_overtime_minutes or 0) /60
+        
 
         # 休日出勤
         if r.is_holiday_work:
